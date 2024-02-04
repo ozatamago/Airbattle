@@ -1,0 +1,25 @@
+my_ma_poca_project/
+│
+├── configs/                   # トレーニングと環境設定ファイル
+│   ├── env_config.json        # 環境設定
+│   └── training_config.yaml   # トレーニングパラメータ設定
+│
+├── models/                    # ニューラルネットワークモデル定義
+│   ├── policy_model.py        # 方策モデル
+│   ├── critic_model.py        # クリティックモデル（中央集権型の価値関数）
+│   ├── actor_model.py         # アクターモデル（中央集権型の方策関数）
+│   └── transformer.py         # Encorder onlyのTransformerモデル
+│
+├── utils/                     # ユーティリティ関数
+│   ├── replay_buffer.py       # 経験リプレイバッファ（集中型）
+│   └── helper_functions.py    # その他のヘルパー関数
+│
+├── environments/              # カスタム環境定義
+│   └── custom_env.py          # マルチエージェント環境の実装
+│
+├── agents/                    # エージェントの実装
+│   ├── ma_agent.py            # マルチエージェント用の強化学習エージェント
+│   └── central_actor.py       # 中央アクターの実装
+│
+├── train.py                   # トレーニングスクリプト
+└── test.py                    # テスト・評価スクリプト

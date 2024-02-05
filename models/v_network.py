@@ -5,9 +5,9 @@ import math
 import transformer as t
 
 
-class CriticModel(nn.Module):
+class VNetwork(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, num_layers, dropout=0.1):
-        super(CriticModel, self).__init__()
+        super(VNetwork, self).__init__()
         self.transformer_encoder = t.TransformerEncoder(num_layers, d_model, num_heads, d_ff, dropout)
         self.value_head = nn.Linear(d_model, 1)  # 状態の価値を計算するヘッド
 

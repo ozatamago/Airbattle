@@ -10,6 +10,10 @@ my_ma_poca_project/
 │   ├── actor_model.py         # アクターモデル（中央集権型の方策関数）
 │   └── transformer.py         # Encorder onlyのTransformerモデル
 │
+├── trainer/                    # ニューラルネットワークモデル定義
+│   ├── policy_trainer.py        # 方策モデル
+│   └── critic_trainer.py         # Encorder onlyのTransformerモデル
+│
 ├── utils/                     # ユーティリティ関数
 │   ├── replay_buffer.py       # 経験リプレイバッファ（集中型）
 │   └── helper_functions.py    # その他のヘルパー関数

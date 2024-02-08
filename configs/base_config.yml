@@ -1,0 +1,21 @@
+# ベースとなる情報（定数）をまとめる
+config:
+  normConfigName: 'norm_config.yml'
+env: # 環境の情報
+  agents: 2
+model: # model作成に必要な情報
+  observationClassName: Observation #norm_configで指定しているObservation用のクラス（Observationのサイズ計算用）
+  actions: 10
+  hyperParameters:
+    critic: # Criticのモデルに用いるハイパーパラメータ
+      hiddenLayers: [64, 64] # Criticのニューラルネットワークの隠れ層のユニット数
+      activation: 'relu' # Criticのニューラルネットワークの活性化関数
+      learningRate: 0.01 # Criticの学習率
+      gamma: 0.99 # 割引率
+      lambda: 0.95 # GAEのパラメータ
+    actor: # Actorのモデルに用いるハイパーパラメータ
+      hiddenLayers: [64, 64] # Actorのニューラルネットワークの隠れ層のユニット数
+      activation: 'tanh' # Actorのニューラルネットワークの活性化関数
+      learningRate: 0.001 # Actorの学習率
+      entropyCoefficient: 0.01 # エントロピー項の係数
+      clipRatio: 0.2 # PPOのクリッピング比率

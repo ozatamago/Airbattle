@@ -24,9 +24,12 @@ class PrintColor:
 	RESET          = '\033[0m'#全てリセット
 	
 class Printer:
-	
+	@staticmethod
+	def resetLiteralColor():
+		print(PrintColor.RESET)
 	@staticmethod
 	def instant(message:str,color:PrintColor)->str:
+		Printer.resetLiteralColor()
 		return f"{color}{message}{PrintColor.RESET}"
 	@staticmethod
 	def warn(message:str)->str:

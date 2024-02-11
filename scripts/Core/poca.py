@@ -1,23 +1,69 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from gymnasium import spaces
+from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
-# Actor class
-class Actor(nn.Module):
-    def __init__(self, obs_dim, act_dim):
-        super(Actor, self).__init__()
+# from trainer.policy_trainer import PolicyNetworkTrainer
+# from scripts.Core.v_network import VNetwork as v
+# from scripts.Core.q_network import QNetwork as q
+
+
+def getBatchSize(obs,space):
+    if(isinstance(space,spaces.Dict)):
+        k=next(iter(space))
+        return getBatchSize(obs[k],space[k])
+    elif(isinstance(space,spaces.Tuple)):
+        return  getBatchSize(obs[0],space[0])
+    else:
+        return obs.shape[0]
+    
+
+# Actor class(Policy)
+class Actor(ModelBase):
+    def __init__(self, obs_space, ac_space, action_dist_class, model_config):
+        obs_dim = obs_space.shape[0]
+        act_dim = len(ac_space.nvec)
+        print(ac_space)
+
+
+        # print("obs_dim: ", obs_dim)
+        # print("act_dim: ", act_dim)
+        # super(Actor, self).__init__()
+        super().__init__(obs_space, ac_space, action_dist_class, model_config)
+        self.action_dim = self.action_dist_class.get_param_dim(ac_space) #=出力ノード数
+        self.observation_space = obs_space
+
         # Define the network layers
         self.fc1 = nn.Linear(obs_dim, 64)
         self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, act_dim)
+        self.fc3 = nn.Linear(64, self.action_dim)
+
+        # Save the action distribution class
+        self.action_dist_class = action_dist_class
     
-    def forward(self, obs):
+    def forward(self, obs, hidden=None):
         # Take a vector observation as input and return a 5-dim action
         x = F.relu(self.fc1(obs))
         x = F.relu(self.fc2(x))
-        x = torch.tanh(self.fc3(x))
-        return x
+        action_logits = self.fc3(x)
+        # action_probs = F.softmax(action_logits, dim=-1)
 
+        # B=getBatchSize(obs,self.observation_space)
+        # print("B: ", B)
+        # print("self.action_dim: ", self.action_dim)
+        # p = torch.ones([B,self.action_dim],dtype=torch.float32)
+
+        ret = {"policy": action_logits}
+        print(ret)
+        return ret
+    
+    def init_hidden(self):
+        # RNNを使用しない場合、ダミーの隠れ状態を返す
+        return None
+    
+
+# to update policy parameter
 # Critic class
 class Critic(nn.Module):
     def __init__(self, obs_dim, act_dim, num_agents):
@@ -63,24 +109,33 @@ class Critic(nn.Module):
 # ActorCritic class
 class ActorCritic(nn.Module):
     def __init__(self, obs_dim, act_dim, num_agents, lr):
+        print("obs_dim: ", obs_dim)
+        print("act_dim: ", act_dim)
+        print("num_agents: ", num_agents)
+        # print("lr: ", lr)
         super(ActorCritic, self).__init__()
+        # Actorクラスの初期化部分
+        obs_dim = 78  # Box型から取得した観測空間の次元数
+        act_dim = sum([11, 9, 3, 5, 6])  # MultiDiscrete型から取得したアクションの総数
+        num_agents = 1  # 例として2を設定
         # Define the actor network
         self.actor = Actor(obs_dim, act_dim)
         # Define the critic network
         self.critic = Critic(obs_dim, act_dim, num_agents)
         # Define the optimizer
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr['model']['hyperParameters']['actor']['learningRate'])
         # Define the learning rate
-        self.lr = lr
+        self.lr = lr['model']['hyperParameters']['actor']['learningRate']
+
     
-    def forward(self, obs):
+    def forward(self, obs, active):
         # Take a vector observation as input and return the action probability and value
         action_prob = self.actor(obs)
-        value = self.critic(obs)
-        return action_prob, value
+        value = self.critic(obs,action_prob,active)
+        return action_prob, value 
     
     # Training function
-    def train(model, experiences, gamma, lam):
+    def train_model(model, experiences, gamma, lam):
         # model: the actor-critic model
         # experiences: a list of dictionaries containing state, action, reward, n_state, done for each step
         # gamma: the discount factor
@@ -129,3 +184,7 @@ class ActorCritic(nn.Module):
         
         # Return the team reward
         return R
+    
+    def init_hidden(self):
+        # RNNを使用しない場合、ダミーの隠れ状態を返す
+        return None

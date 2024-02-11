@@ -1,0 +1,81 @@
+actionDistributionClassGetter: actionDistributionClassGetter
+use_lstm: false
+lstm_cell_size: 256
+lstm_num_layers: 1
+lstm_dropout: 0.2
+pos_conv:
+    layers:
+        - ["Conv2d",{"kernel_size": 7,"out_channels": 32,"padding": 3,"stride": 2}]
+        - ["BatchNorm2d",{}]
+        - ["ReLU",{}]
+        - ["ResidualBlock",{
+            "layers":[
+                ["Conv2d",{"kernel_size": 3,"out_channels": 32,"padding": 1}],
+                ["BatchNorm2d",{}],
+                ["ReLU",{}],
+                ["Conv2d",{"kernel_size": 3,"out_channels": 32,"padding": 1}],
+                ["BatchNorm2d",{}]
+            ]}]
+        - ["ReLU",{}]
+        - ["Conv2d",{"kernel_size": 4,"out_channels": 64,"padding": 1,"stride": 2}]
+        - ["BatchNorm2d",{}]
+        - ["ReLU",{}]
+        - ["ResidualBlock",{
+            "layers":[
+                ["Conv2d",{"kernel_size": 3,"out_channels": 64,"padding": 1}],
+                ["BatchNorm2d",{}],
+                ["ReLU",{}],
+                ["Conv2d",{"kernel_size": 3,"out_channels": 64,"padding": 1}],
+                ["BatchNorm2d",{}]
+            ]}]
+        - ["ReLU",{}]
+        - ["Conv2d",{"kernel_size": 4,"out_channels": 128,"padding": 1,"stride": 2}]
+        - ["BatchNorm2d",{}]
+        - ["ReLU",{}]
+        - ["ResidualBlock",{
+            "layers":[
+                ["Conv2d",{"kernel_size": 3,"out_channels": 128,"padding": 1}],
+                ["BatchNorm2d",{}],
+                ["ReLU",{}],
+                ["Conv2d",{"kernel_size": 3,"out_channels": 128,"padding": 1}],
+                ["BatchNorm2d",{}]
+            ]}]
+        - ["ReLU",{}]
+        - ["AdaptiveAvgPool2d",{"output_size": 1}]
+        - ["Flatten",{}]
+dense:
+    layers:
+        - ["Linear",{"out_features": 128}]
+        - ["ReLU",{}]
+        - ["ResidualBlock",{
+            "layers":[
+                ["Linear",{"out_features": 128}],
+                ["BatchNorm1d",{}]
+            ]}]
+        - ["ReLU",{}]
+        - ["ResidualBlock",{
+            "layers":[
+                ["Linear",{"out_features": 128}],
+                ["BatchNorm1d",{}]
+            ]}]
+merge:
+    layers:
+        - ["ReLU",{}]
+value:
+    layers:
+        - ["Linear",{"out_features": 64}]
+        - ["ReLU",{}]
+        - ["Linear",{"out_features": 64}]
+        - ["ReLU",{}]
+return:
+    layers:
+        - ["Linear",{"out_features": 64}]
+        - ["ReLU",{}]
+        - ["Linear",{"out_features": 64}]
+        - ["ReLU",{}]
+action:
+    layers:
+        - ["Linear",{"out_features": 128}]
+        - ["ReLU",{}]
+        - ["Linear",{"out_features": 128}]
+        - ["ReLU",{}]

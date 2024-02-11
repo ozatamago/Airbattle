@@ -245,13 +245,13 @@ class MyAgent(Agent):
 
         vec = om_vec + lt_vec + m_vec + f_vec
 
-        print("vec_dim: ", len(vec))
+        # print("vec_dim: ", len(vec))
 
         return np.array(vec, dtype=np.float32)
 
 
     def deploy(self,action):
-        print("action:",action)
+        # print("action:",action)
         self.last_action_obs=np.zeros([self.maxTrackNum["Friend"],self.last_action_dim],dtype=np.float32)
         action_idx=0
 

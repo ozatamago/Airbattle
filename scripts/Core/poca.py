@@ -37,7 +37,7 @@ class Actor(ModelBase):
         # Define the network layers
         self.fc1 = nn.Linear(obs_dim, 64)
         self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, act_dim)
+        self.fc3 = nn.Linear(64, self.action_dim)
 
         # Save the action distribution class
         self.action_dist_class = action_dist_class
@@ -47,11 +47,14 @@ class Actor(ModelBase):
         x = F.relu(self.fc1(obs))
         x = F.relu(self.fc2(x))
         action_logits = self.fc3(x)
+        # action_probs = F.softmax(action_logits, dim=-1)
 
-        B=getBatchSize(obs,self.observation_space)
-        p = torch.ones([B,self.action_dim],dtype=torch.float32)
+        # B=getBatchSize(obs,self.observation_space)
+        # print("B: ", B)
+        # print("self.action_dim: ", self.action_dim)
+        # p = torch.ones([B,self.action_dim],dtype=torch.float32)
 
-        ret = {"policy": p}
+        ret = {"policy": action_logits}
         print(ret)
         return ret
     

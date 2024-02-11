@@ -1,8 +1,13 @@
+# from Test import getUserAgentClass
 import numpy as np
 from gymnasium import spaces
 from math import cos, sin, atan2, sqrt
 from ASRCAISim1.libCore import Agent, MotionState, Track3D, Track2D, getValueFromJsonKRD, deg2rad, StaticCollisionAvoider2D, LinearSegment, AltitudeKeeper
 from .scripts.Core import DataNormalizer
+
+def getUserAgentClass(args={}):
+    # ここで定義したエージェントクラスを返す
+    return MyAgent
 
 class MyAgent(Agent):
 
@@ -130,7 +135,7 @@ class MyAgent(Agent):
 
 
     def observation_space(self):
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(78,))
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(72,))
 
 
     def action_space(self):
@@ -158,7 +163,11 @@ class MyAgent(Agent):
             if(parent.isAlive()):
                 #残存していればobservablesそのもの
                 self.ourMotion.append(parent.observables["motion"]())
-                print(self.normalizer.normalize("Observation",str(parent.observables)))
+                # print("===========================================================")
+                # print(len(parent.getFullName()))
+                # print(self.normalizer.normalize("Observation",str(parent.observables)))
+                # print("Observation: ", parent.observables)
+                self.ourObservables.append(parent.observables)
                 self.ourObservables.append(parent.observables)
                 myMotion=MotionState(parent.observables["motion"])
 
@@ -235,6 +244,8 @@ class MyAgent(Agent):
                 m_vec += [0.0]*6
 
         vec = om_vec + lt_vec + m_vec + f_vec
+
+        print("vec_dim: ", len(vec))
 
         return np.array(vec, dtype=np.float32)
 

@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from . import *
 import copy
+import numpy as np
 from ..Helper.Tensor import Tensor
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
@@ -83,7 +84,7 @@ class Actor(nn.Module):
         print(f"action_probs:shape{action_probs.shape}",action_probs)
         print(f"action_probs:shape{next_obs.shape}",next_obs)
         print(f"action_probs:shape{value.shape}",value)
-        ret = {"policy": action_probs.ravel(), "n_obs": next_obs.ravel(), "value": value.ravel()}
+        ret = {"policy": action_probs, "n_obs": next_obs, "value": value}
         print(ret)
         return ret
     
@@ -146,6 +147,8 @@ class Critic(nn.Module):
         self.out = nn.Linear(hid_dim, 1)
 
     def forward(self, obs, act):
+        print("obs: shape ==",obs.shape)
+        print("act: shape ==",act.shape)
         # 入力をエージェントごとに結合
         x = torch.cat([obs, act], dim=-1)
         # Attentionのための線形変換を一度に行う
@@ -191,7 +194,8 @@ class ActorCritic(nn.Module):
         rets = list()
         for sobs in obs:
             rets.append(self.actor(sobs,hidden))
-        value = self.critic(obs, Tensor.tensorify([ret['policy'] for ret in rets]))
+        print("rets:",rets)
+        value = self.critic(obs, torch.stack(np.array([ret['policy'] for ret in rets])))
         return rets[0], value
     
     # Training function

@@ -215,9 +215,9 @@ class ActorCritic(nn.Module):
             R = rew + gamma * R * (1 - done)
             # Compute the value for the current and next observations
             _,value = self.critic(obs, act)
-            _,next_value = self.critic(next_obs, act, active)
+            _,next_value = self.critic(next_obs, act)
             # Compute the TD error
-            delta = R - value
+            delta = R + gamma * next_value - value
             # Update the eligibility trace
             z = gamma * lam * z * (1 - done) + act.log_prob()
             # Update the actor's loss

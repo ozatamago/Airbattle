@@ -47,12 +47,12 @@ class ModelManager:
         """
         # モデルのファイル名を作成する
         if mode is self.SaveMode.UPDATE:
-            filepath = self.filepath
+            folderpath = self.folderpath
         else:
             i = max(self.getModelNumbers()) + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
-            filepath = f"{self.model_folder}/{i}/model.pth"
+            folderpath = f"{self.model_folder}/{i}/"
         # モデルの重みを保存する
-        torch.save(self.actor_critic.state_dict(), filepath)
+        torch.save(self.actor_critic.state_dict(), folderpath)
 
     def load_models(self,mode:LoadMode=LoadMode.LATEST,num=None):
         """
@@ -67,13 +67,13 @@ class ModelManager:
         else:
             load_i = max(self.getModelNumbers()) if num is None else num
             i = load_i if mode is self.LoadMode.CHOICE else (max(self.getModelNumbers()) + 1)
-        self.filepath = f"{self.model_folder}/{i}/model.pth"
-        filepath = f"{self.model_folder}/{load_i}/model.pth"
+        self.folderpath = f"{self.model_folder}/{i}/"
+        folderpath = f"{self.model_folder}/{load_i}/"
         # ActorCriticモデルの定義を作成する
         self.actor_critic = ActorCritic(self.observation_size,self.action_dim,self.agent_num,0.01)
         if mode is not self.LoadMode.NEW:
             # ActorCriticモデルの重みを読み込む
-            self.actor_critic.load_state_dict(torch.load(filepath))
+            self.actor_critic.load_state_dict(folderpath)
     
     def getModelNumbers(self):
         """

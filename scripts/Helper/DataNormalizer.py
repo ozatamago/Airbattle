@@ -144,7 +144,6 @@ class DataNormalizer:
         # cls.dataToPngConverter = DataToPNG()
         # cnv_d = cls.dataToPngConverter.Convert(np.array(normalized_data))
         # print("converted:",cnv_d,"/ size =",cnv_d.size)
-        sys.exit(1)
         return normalized_data
     
     def getDataSize(self,class_name):

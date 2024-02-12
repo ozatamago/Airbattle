@@ -39,7 +39,12 @@ def getNumAgents():
 @lru_cache(maxsize=1)
 def getObservationClassName():
     return getModelValue('observationClassName')
-
+@lru_cache(maxsize=1)
+def getActorModelName():
+    return getModelValue('actorModelName')
+@lru_cache(maxsize=1)
+def getCriticModelName():
+    return getModelValue('criticModelName')
 @lru_cache(maxsize=1)
 def getNormConfigPath():
     return getConfigValue('normConfigName')

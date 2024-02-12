@@ -39,7 +39,7 @@ def getUserAgentModelConfig(args={}):
 """
 def isUserAgentSingleAsset(args={}):
     #1機だけならばTrue,陣営全体ならばFalseを返すこと。
-    return True
+    return False
 
 #④StandalonePolicyを返す関数を定義
 def getUserPolicy(args={}):

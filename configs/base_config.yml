@@ -1,10 +1,13 @@
 # ベースとなる情報（定数）をまとめる
 config:
   normConfigName: 'norm_config.yml'
+  stdParamsName: 'std_params.json'
 env: # 環境の情報
   agents: 2
 model: # model作成に必要な情報
   observationClassName: Observation #norm_configで指定しているObservation用のクラス（Observationのサイズ計算用）
+  actorModelName: actor.pth
+  criticModelName: critic.pth
   actions: 10
   hyperParameters:
     critic: # Criticのモデルに用いるハイパーパラメータ

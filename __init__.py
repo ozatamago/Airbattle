@@ -39,11 +39,11 @@ def getUserAgentModelConfig(args={}):
 """
 def isUserAgentSingleAsset(args={}):
     #1機だけならばTrue,陣営全体ならばFalseを返すこと。
-    return True
+    return False
 
 #④StandalonePolicyを返す関数を定義
 def getUserPolicy(args={}):
-    from .scripts.Core.poca import Actor 
+    from .scripts.Core.Manager import Manager
     import glob
     model_config=yaml.safe_load(open(os.path.join(os.path.dirname(__file__),"configs/base_config.yml"),"r"))
     print(model_config)
@@ -56,4 +56,4 @@ def getUserPolicy(args={}):
     else:
         weightPath=os.path.join(os.path.dirname(__file__),weightPath)
     isDeterministic=False #決定論的に行動させたい場合はTrue、確率論的に行動させたい場合はFalseとする。
-    return StandaloneHandyRLPolicy(Actor,model_config,weightPath,getActionDistributionClass,isDeterministic)
+    return StandaloneHandyRLPolicy(Manager,model_config,weightPath,getActionDistributionClass,isDeterministic)

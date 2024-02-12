@@ -1,0 +1,12 @@
+{
+  "maxTime": 1200.0,
+  "minTime": 300.0,
+  "dLine": 100000.0,
+  "dOut": 75000.0,
+  "hLim": 20000.0,
+  "westSider": "Red",
+  "eastSider": "Blue",
+  "pDisq": -10.0,
+  "pBreak": 1.0,
+  "pOut": 0.01
+}

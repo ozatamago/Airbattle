@@ -22,17 +22,19 @@ class ModelManager:
         LATEST = 'latest' # 最新のモデルを読み込む
         NEW = 'new' # 新しいモデルを作成する
     actor_critic:nn.Module
-    def __init__(self, observation_size, action_dim, agent_num):
+    def __init__(self, observation_size, action_dim, agent_num,lr):
         """
         ModelManagerのコンストラクタ
         :param observation_size: 観測値の次元数
         :param action_dim: 行動空間の次元数
         :param actor_num: Actorの数
+        :param lr: 学習率
         """
         # 観測値の次元数、行動空間の次元数、Actorの数を属性として保持する
         self.observation_size = observation_size
         self.action_dim = action_dim
         self.agent_num = agent_num
+        self.lr = lr
         # モデルのフォルダーのパスを作成する
         self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
         # モデルのフォルダーが存在しない場合は作成する
@@ -47,12 +49,12 @@ class ModelManager:
         """
         # モデルのファイル名を作成する
         if mode is self.SaveMode.UPDATE:
-            filepath = self.filepath
+            folderpath = self.folderpath
         else:
-            i = max(self.getModelNumbers()) + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
-            filepath = f"{self.model_folder}/{i}/model.pth"
+            i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
+            folderpath = f"{self.model_folder}/{i}/"
         # モデルの重みを保存する
-        torch.save(self.actor_critic.state_dict(), filepath)
+        torch.save(self.actor_critic.state_dict(), folderpath)
 
     def load_models(self,mode:LoadMode=LoadMode.LATEST,num=None):
         """
@@ -62,18 +64,18 @@ class ModelManager:
         """
         # モデルのファイル名を作成する
         if mode is self.LoadMode.LATEST:
-            i = max(self.getModelNumbers())
+            i = self.getModelMaxNumber()
             load_i = i
         else:
-            load_i = max(self.getModelNumbers()) if num is None else num
-            i = load_i if mode is self.LoadMode.CHOICE else (max(self.getModelNumbers()) + 1)
-        self.filepath = f"{self.model_folder}/{i}/model.pth"
-        filepath = f"{self.model_folder}/{load_i}/model.pth"
+            load_i = self.getModelMaxNumber() if num is None else num
+            i = load_i if mode is self.LoadMode.CHOICE else (self.getModelMaxNumber()+ 1)
+        self.folderpath = f"{self.model_folder}/{i}/"
+        folderpath = f"{self.model_folder}/{load_i}/"
         # ActorCriticモデルの定義を作成する
-        self.actor_critic = ActorCritic(self.observation_size,self.action_dim,self.agent_num,0.01)
+        self.actor_critic = ActorCritic(self.observation_size,self.action_dim,self.agent_num,self.lr)
         if mode is not self.LoadMode.NEW:
             # ActorCriticモデルの重みを読み込む
-            self.actor_critic.load_state_dict(torch.load(filepath))
+            self.actor_critic.load_state_dict(folderpath)
     
     def getModelNumbers(self):
         """
@@ -81,4 +83,14 @@ class ModelManager:
         :return: モデルの番号のリスト
         """
         return [int(f) for f in os.listdir(self.model_folder) if os.path.isdir(os.path.join(self.model_folder, f))]
+    
+    def getModelMaxNumber(self):
+        """
+        モデルのフォルダーにあるモデルの番号の最大値を返すメソッド(何もないときは0を返す)
+        :return: モデルの番号
+        """
+        model_nums = self.getModelNumbers()
+        return 0 if len(model_nums) == 0 else max(model_nums)
+    
+
     

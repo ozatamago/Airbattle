@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
+from .v_network import VNetwork
 
 # from trainer.policy_trainer import PolicyNetworkTrainer
 # from scripts.Core.v_network import VNetwork as v
@@ -47,14 +48,20 @@ class Actor(ModelBase):
         x = F.relu(self.fc1(obs))
         x = F.relu(self.fc2(x))
         action_logits = self.fc3(x)
-        # action_probs = F.softmax(action_logits, dim=-1)
+        # # ハイパーパラメータの設定
+        d_model = 72
+        num_heads = 8
+        d_ff = 2048
+        num_layers = 3
+        dropout = 0.1
 
-        # B=getBatchSize(obs,self.observation_space)
-        # print("B: ", B)
-        # print("self.action_dim: ", self.action_dim)
-        # p = torch.ones([B,self.action_dim],dtype=torch.float32)
+        # クリティックモデルのインスタンス化
+        critic = VNetwork(d_model, num_heads, d_ff, num_layers, dropout)
 
-        ret = {"policy": action_logits}
+        # フォワードパス
+        state_values = critic(obs)
+        ret = {"policy": action_logits,
+               "value": state_values}
         print(ret)
         return ret
     

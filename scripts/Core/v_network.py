@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-import transformer as t
+from .transformer import TransformerEncoder as t
 
 
 class VNetwork(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, num_layers, dropout=0.1):
         super(VNetwork, self).__init__()
-        self.transformer_encoder = t.TransformerEncoder(num_layers, d_model, num_heads, d_ff, dropout)
+        self.transformer_encoder = t(num_layers, d_model, num_heads, d_ff, dropout)
         self.value_head = nn.Linear(d_model, 1)  # 状態の価値を計算するヘッド
 
     def forward(self, observations):

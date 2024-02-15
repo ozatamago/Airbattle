@@ -8,7 +8,7 @@ model: # model作成に必要な情報
   observationClassName: Observation #norm_configで指定しているObservation用のクラス（Observationのサイズ計算用）
   actorModelName: actor.pth
   criticModelName: critic.pth
-  actions: 10
+  actions: 34
   hyperParameters:
     critic: # Criticのモデルに用いるハイパーパラメータ
       hiddenLayers: [64, 64] # Criticのニューラルネットワークの隠れ層のユニット数

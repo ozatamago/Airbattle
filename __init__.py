@@ -55,5 +55,5 @@ def getUserPolicy(args={}):
         weightPath=cwdWeights[0] if len(cwdWeights)>0 else None
     else:
         weightPath=os.path.join(os.path.dirname(__file__),weightPath)
-    isDeterministic=False #決定論的に行動させたい場合はTrue、確率論的に行動させたい場合はFalseとする。
+    isDeterministic=True #決定論的に行動させたい場合はTrue、確率論的に行動させたい場合はFalseとする。
     return StandaloneHandyRLPolicy(Manager,model_config,weightPath,getActionDistributionClass,isDeterministic)

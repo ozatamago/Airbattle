@@ -22,7 +22,9 @@ class PrintColor:
 	BG_WHITE       = '\033[47m'#(背景)白
 	BG_DEFAULT     = '\033[49m'#背景色をデフォルトに戻す
 	RESET          = '\033[0m'#全てリセット
-	
+
+import torch
+import inspect
 class Printer:
 	@staticmethod
 	def resetLiteralColor():
@@ -40,3 +42,9 @@ class Printer:
 	@staticmethod
 	def err(message:str)->str:
 		return Printer.instant(message,PrintColor.RED)
+	@staticmethod
+	def tensorPrint(tensor:torch.Tensor,output_values=True):
+		frame = inspect.currentframe()
+		names = {id(v): k for k, v in frame.f_back.f_locals.items()}
+		info = "None" if tensor == None else f"shape({tensor.shape if isinstance(tensor,torch.Tensor) else [t.shape for t in tensor]})"+ (f" = {tensor}" if output_values else "")
+		return f"{names[id(tensor)]}:{info}"

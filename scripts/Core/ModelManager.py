@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import os
-from .poca import ActorCritic
+from .poca import MAPOCA
 
 class ModelManager:
     """
@@ -22,18 +22,17 @@ class ModelManager:
         LATEST = 'latest' # 最新のモデルを読み込む
         NEW = 'new' # 新しいモデルを作成する
     actor_critic:nn.Module
-    def __init__(self, observation_size, action_dim, agent_num,lr):
+    def __init__(self, observation_size, action_dim,max_agents, lr):
         """
         ModelManagerのコンストラクタ
         :param observation_size: 観測値の次元数
         :param action_dim: 行動空間の次元数
-        :param actor_num: Actorの数
         :param lr: 学習率
         """
         # 観測値の次元数、行動空間の次元数、Actorの数を属性として保持する
         self.observation_size = observation_size
         self.action_dim = action_dim
-        self.agent_num = agent_num
+        self.max_agents = max_agents
         self.lr = lr
         # モデルのフォルダーのパスを作成する
         self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
@@ -72,7 +71,7 @@ class ModelManager:
         self.folderpath = f"{self.model_folder}/{i}/"
         folderpath = f"{self.model_folder}/{load_i}/"
         # ActorCriticモデルの定義を作成する
-        self.actor_critic = ActorCritic(self.observation_size,self.action_dim,self.agent_num,self.lr)
+        self.actor_critic = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.lr)
         if mode is not self.LoadMode.NEW:
             # ActorCriticモデルの重みを読み込む
             self.actor_critic.load_state_dict(folderpath)

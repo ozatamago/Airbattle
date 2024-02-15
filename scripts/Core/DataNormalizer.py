@@ -68,7 +68,7 @@ class DataNormalizer:
             self.load_std_params()
         subn = SubNormalizer(self.stdparam)
         normalized_data = subn.normalize(class_name,data,['Observation'])
-        print("data size =",len(normalized_data))
+        # print("data size =",len(normalized_data))
         # 表現力が落ちてしまうが、行動が偏りすぎる場合は有効かもしれない
         # cls.dataToPngConverter = DataToPNG()
         # cnv_d = cls.dataToPngConverter.Convert(np.array(normalized_data))
@@ -147,7 +147,8 @@ class SubNormalizer:
                                         filteredData = {fk:fd for fk,fd in filteredData.items() if SubNormalizer.checkRootValue(fd,filterData['has'])}
                                         # print(SubNormalizer.atStr(parents,f"{len(data)} data filtered to {len(filteredData)}"))
                                 if 'sort' in top:
-                                    sortkeys = [(sk,SubNormalizer.getRootValue(s_data,top['sort']['keys'])) for sk,s_data in filteredData.items()]
+                                    hasIgnore = 'ignore' in top['sort']
+                                    sortkeys = [(sk,SubNormalizer.getRootValue(s_data,top['sort']['keys'])) for sk,s_data in filteredData.items() if not (hasIgnore and all(SubNormalizer.getRootValue(s_data,[igk]) == igv for igk,igv in top['sort']['ignore'].items()))]
                                     sortkeys.sort(key=lambda x: x[1],reverse=top['sort']['reverse'])
                                 else:
                                     sortkeys = enumerate(filteredData.values())
@@ -212,7 +213,7 @@ class SubNormalizer:
                     norm_size = DictSearcher.Search(CLASS_SIZE_TREE,parents)
                     p_total = DictSearcher.SumChildValue(norm_size)
                     if p_total != len(normlist) - b_size:
-                        print(self.atStr(parents,Printer.warn(f"Please check keys, predict {norm_size} total: {p_total}/ got {len(normlist) - b_size}")))
+                        # print(self.atStr(parents,Printer.warn(f"Please check keys, predict {norm_size} total: {p_total}/ got {len(normlist) - b_size}")))
                         assert len(normlist) - b_size <= p_total, "Its invalid"
                         normlist.extend([0]*(p_total - len(normlist) + b_size))
 
@@ -236,6 +237,7 @@ class SubNormalizer:
         return f"{p_str}\t{message}"
     @staticmethod
     def getRootValue(top:dict,query:list):
+        assert query[0] in top, f"{query[0]} is not in top ({top})"
         node = top[query[0]]
         # print("\t\tcheck node at",query[0])
         # print("\t\tdata =",node)

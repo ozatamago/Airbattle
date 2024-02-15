@@ -16,7 +16,7 @@ class Manager(ModelBase):
     def __init__(self,obs_space, ac_space, action_dist_class, model_config):
         super().__init__(obs_space, ac_space, action_dist_class, model_config)
         
-        self.modelmanager = ModelManager(self.getObservationSize(),getActions(),getNumAgents(),getHyperParameters('critic')['learningRate'])
+        self.modelmanager = ModelManager(self.getObservationSize(),getActions(),2,getHyperParameters('critic')['learningRate'])
         self.modelmanager.load_models(ModelManager.LoadMode.NEW)
     
     @lru_cache(maxsize=1)
@@ -25,8 +25,9 @@ class Manager(ModelBase):
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
-        return self.getModelManager().actor_critic(obs,hidden)
+        return self.getModelManager().actor_critic(obs,hidden) #retsだけ返す
     def init_hidden(self,hidden=None):
         # RNNを使用しない場合、ダミーの隠れ状態を返す
         return None
+    # def train(self,)
     

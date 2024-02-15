@@ -76,8 +76,8 @@ stdconst:
     dtype: bool
     norm: mapping
     params:
-      true: 1
-      false: 0
+      True: 1
+      False: 0
 # 変数型のサイズを保持
 sizeparam:
   default: 1
@@ -135,7 +135,7 @@ class:
     ignore: # params内で指定されたclass内の項目で無視するものを指定する
       - buffer
     sort: # 処理するデータをkeyに沿って並び替える
-      reverse: true
+      reverse: True
       keys:
         - time
     params:
@@ -147,7 +147,7 @@ class:
     ignore:
       - buffer
     sort:
-      reverse: true
+      reverse: True
       keys:
         - time
     params:
@@ -202,7 +202,7 @@ class:
       track:
         class: Track2DList
   Fire:
-      nullable: true
+      nullable: True
       dtype: list
       norm: objsnormalize
       params:
@@ -268,7 +268,9 @@ class:
       norm: objsnormalize
       padding: 4
       sort:
-        reverse: true
+        reverse: True
+        ignore:
+          isAlive: False
         keys:
           - target
           - time
@@ -313,7 +315,7 @@ class:
       padding: 2
       params:
         decision:
-          nullable: true
+          nullable: True
           class: SharedDecision
     fighter:
       dtype: dict

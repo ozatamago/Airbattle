@@ -163,9 +163,9 @@ class MyAgent(Agent):
                 firstAlive=parent
                 break
         for pIdx,parent in enumerate(self.parents.values()):
-            self.jsonObservations.append(str(parent.observables))
             self.actives.append(parent.isAlive())
             if(parent.isAlive()):
+                self.jsonObservations.append(str(parent.observables))
                 #残存していればobservablesそのもの
                 self.ourMotion.append(parent.observables["motion"]())
                 # print("===========================================================")
@@ -250,11 +250,11 @@ class MyAgent(Agent):
 
         vec = om_vec + lt_vec + m_vec + f_vec
 
-        print("vec_dim: ", len(vec))
+        # print("vec_dim: ", len(vec))
         normalized_obs = []
         for jsonObs in self.jsonObservations:
             normalized_obs.append(self.normalizer.normalize(getObservationClassName(),jsonObs))
-        print("Obs:",len(normalized_obs))
+        # print("Obs:",len(normalized_obs))
 
         return torch.tensor(np.array(normalized_obs,dtype=np.float32)) # np.array(vec, dtype=np.float32)
 

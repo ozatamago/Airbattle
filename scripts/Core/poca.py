@@ -9,29 +9,6 @@ from ..Helper.Printer import Printer
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
-"""
-class ModelBase(nn.Module):
-    ""ASRCAISim1のHandyRLサンプルを使用する際のNNモデルの基底クラス。
-    出力のキー'policy'には各action要素の出力をconcatしたものを与える。
-    ""
-    def __init__(self, obs_space, ac_space, action_dist_class, model_config):
-        super().__init__()
-        self.observation_space = obs_space
-        self.action_space = ac_space
-        self.action_dist_class = action_dist_class
-        self.action_dim = self.action_dist_class.get_param_dim(ac_space) #=出力ノード数
-        self.model_config = copy.deepcopy(model_config)
-    def forward(self, obs, state, seq_len=None, mask=None):
-        raise NotImplementedError
-        ""
-        return {
-            'policy': p,
-            'value': 0.0,
-            'return': 0.0
-        }
-        ""
-"""
-
 # from trainer.policy_trainer import PolicyNetworkTrainer
 # from scripts.Core.v_network import VNetwork as v
 # from scripts.Core.q_network import QNetwork as q

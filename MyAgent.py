@@ -6,6 +6,7 @@ from math import cos, sin, atan2, sqrt
 from ASRCAISim1.libCore import Agent, MotionState, Track3D, Track2D, getValueFromJsonKRD, deg2rad, StaticCollisionAvoider2D, LinearSegment, AltitudeKeeper
 from .scripts.Core import getObservationClassName
 from .scripts.Core.DataNormalizer import DataNormalizer
+from .scripts.Helper.TensorExtension import TensorExtension
 
 def getUserAgentClass(args={}):
     # ここで定義したエージェントクラスを返す
@@ -255,8 +256,10 @@ class MyAgent(Agent):
         for jsonObs in self.jsonObservations:
             normalized_obs.append(self.normalizer.normalize(getObservationClassName(),jsonObs))
         # print("Obs:",len(normalized_obs))
-
-        return torch.tensor(np.array(normalized_obs,dtype=np.float32)) # np.array(vec, dtype=np.float32)
+        obs_tensor = torch.tensor(np.array(normalized_obs,dtype=np.float32))
+        # バッチ学習に対応させるためにパディング
+        obs_tensor = TensorExtension.tensor_padding(obs_tensor,len(self.parents.values()),0)
+        return obs_tensor # np.array(vec, dtype=np.float32)
 
 
     def deploy(self,action):

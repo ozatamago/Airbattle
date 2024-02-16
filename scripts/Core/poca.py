@@ -1,3 +1,4 @@
+import sys
 from typing import Any, Mapping
 import torch
 import torch.nn as nn
@@ -6,6 +7,7 @@ from . import *
 import copy
 import numpy as np
 from ..Helper.Printer import Printer
+from ..Helper.TensorExtension import TensorExtension
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
@@ -35,7 +37,6 @@ class Actor(nn.Module):
         self.hidden_layer1 = nn.Linear(obs_dim, hid_dim * 2) # first hidden layer
         self.hidden_layer2 = nn.Linear(hid_dim * 2, hid_dim) # second hidden layer
         self.action_layer = nn.Linear(hid_dim, act_dim) # action output layer
-        self.value_layer = nn.Linear(hid_dim, 1) # state value output layer
         self.softmax = nn.Softmax(dim=-1) # softmax activation function for log_prob output
 
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None) -> dict:
@@ -53,9 +54,8 @@ class Actor(nn.Module):
         x = F.relu(self.hidden_layer1(obs)) # pass through the first hidden layer and apply relu
         x = F.relu(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
         logits = self.action_layer(x) # pass through the action layer for logits output
-        value = self.value_layer(x) # pass through the value layer for state value output
         log_prob = self.softmax(logits) # apply softmax for log_prob output
-        return {'policy': logits, 'value': value, 'hidden': hidden, 'logits': logits, 'log_prob': log_prob}
+        return {'policy': logits, 'obs': obs, 'hidden': hidden, 'logits': logits, 'log_prob': log_prob}
 
 # RSAブロックの定義
 class RSABlock(nn.Module):
@@ -106,48 +106,59 @@ class RSABlock(nn.Module):
 
 # MA-POCA Criticモデルの定義
 class Critic(nn.Module):
-    def __init__(self, observation_size: int, action_size: int, hidden_dim: int = 128, num_heads: int = 4):
+    def __init__(self, input_size: int, hid_dim: int = 128, num_heads: int = 4):
+        """
+        価値関数を計算するCriticネットワーク
+        param: input_size: Agentのエンコード後の観測テンソルの次元数 => (batch_size,num_agents,input_size)
+        return: V値 (batch_size,1)
+        """
         super(Critic,self).__init__()
-        self.observation_size = observation_size
-        self.action_size = action_size
         # 全エージェントの観測と行動を結合した入力の次元
-        self.input_size = (observation_size + action_size)
-        # 全エージェントの観測と行動を結合した入力を処理する全結合層
-        self.input_layer = nn.Linear(self.input_size, hidden_dim)
+        self.input_size = input_size
         # RSAブロック
-        self.rsa = RSABlock(hidden_dim, hidden_dim//2, num_heads)
+        self.rsa = RSABlock(input_size + 1, hid_dim, num_heads)
         # 最終的な価値関数の出力層
-        self.value_layer = nn.Linear(hidden_dim//2, 1)
+        self.value_layer = nn.Linear(hid_dim, 1)
 
-    def forward(self, observations: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, remain: float) -> torch.Tensor:
         """
-        Takes an observation tensor of shape (batch_size, num_agents, observation_size) and an action tensor of shape (batch_size, num_agents, action_size) and returns a value tensor of shape (batch_size, 1).
-        observations: observation tensor
-        actions: action tensor
-        returns: value tensor
+        エンコード後の全Agentの観測のテンソルを受け取って価値を返す
+        param: inputs: エンコード後の観測テンソル (batch_size,num_agents,input_size)
+        param: remain: 正規化したAgentの数
+        returns: value (batch_size,1)
         """
-        # 全エージェントの観測と行動を結合して(batch_size, num_agents, input_size)のテンソルにする
-        inputs = torch.cat([observations, actions], dim=-1) # (batch_size, num_agents, observation_size + action_size)
-        # 全結合層で特徴量を抽出する
-        x = F.relu(self.input_layer(inputs)) # (batch_size, num_agents, hidden_dim)
+        # 頭に残りのAgentの数をつけておく
+        x = torch.cat([inputs,torch.tensor([[[remain]]*inputs.shape[1]]*inputs.shape[0])],dim=-1)
         # RSAブロックで注意力を計算する
-        x = self.rsa(x) # (batch_size, num_agents, hidden_dim//2)
+        x = self.rsa(x) # (batch_size, num_agents, hid_dim + 1)
         # 最終的な価値関数の出力を計算する
         value = self.value_layer(x) # (batch_size, num_agents, 1)
         value = torch.sum(value, dim=1) # (batch_size, 1)
         return value
 
+class Q(nn.Module):
+    def __init__(self,input_dim: int, q_hid_dim: int = 64, rsa_heads: int = 4):
+        super(Q,self).__init__()
+        self.q_rsa = RSABlock(input_dim,q_hid_dim,rsa_heads) # Q値計算用RSA
+        self.q_layer = nn.Linear(q_hid_dim,1) # Q値計算
+
+    def forward(self,inputs: torch.Tensor):
+        q_value = self.q_rsa(inputs) # (batch_size,num_agents,num_agents,q_hid_dim)
+        q_value = self.q_layer(q_value) # Qψ (batch_size,num_agents,num_agents,1)
+        q_value = torch.sum(q_value, dim=2) # (batch_size,num_agents, 1)
+        return q_value
+
 # ActorCritic class
 class MAPOCA(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, max_agents: int, lr: float):
+    def __init__(self, obs_dim: int, act_dim: int, max_agents: int, lr: float, hid_dim: int = 128, q_hid_dim: int = 64, q_rsa_heads: int = 4):
         super(MAPOCA, self).__init__()
         self.act_dim = act_dim
         self.obs_dim = obs_dim
-        # Define the actor network
         self.actor = Actor(obs_dim, act_dim)
-        # Define the critic network
-        self.critic = Critic(obs_dim, act_dim)
-        # Define the learning rate
+        self.obs_encoder = nn.Linear(obs_dim,hid_dim) # g(o)
+        self.critic = Critic(hid_dim) # V値計算
+        self.obs_act_encoder = nn.Linear(obs_dim+act_dim,hid_dim) # f(o,a)
+        self.q_layer = Q(hid_dim,q_hid_dim) # Q値計算
         self.lr = lr
         self.max_agents = max_agents
         # Define the actor optimizer
@@ -158,12 +169,6 @@ class MAPOCA(nn.Module):
         self.experiences = list()
     
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None) -> dict:
-        """
-        Takes an observation tensor of shape (batch_size, num_agents, obs_dim) and a hidden state tensor of shape (batch_size, num_agents, 2, layers, hid_dim) as input and returns a dictionary containing the action tensor of shape (batch_size, num_agents, act_dim), the value tensor of shape (batch_size, 1), the hidden state tensor of shape (batch_size, num_agents, 2, layers, hid_dim), the logits tensor of shape (batch_size, num_agents, act_dim), and the active tensor of shape (batch_size, 1) as output.
-        obs: observation tensor
-        hidden: hidden state tensor
-        returns: output dictionary
-        """
         outputs = dict()
         actives = obs.shape[1]
         for i in range(actives):
@@ -187,20 +192,35 @@ class MAPOCA(nn.Module):
                         outputs[k] = torch.cat([outputs[k],v], dim=1)
                     else:
                         outputs[k] = v
-        value = self.critic(obs, outputs['policy'])
+        encoded_obs = self.obs_encoder(obs) # g (batch_size,num_agents,hid_dim)
+        value = self.critic(encoded_obs,actives/self.max_agents) # Vφ (batch_size,1)
+        acts = outputs['policy'] # (batch_size,num_agents,act_dim)
+        encoded_obs_acts = self.obs_act_encoder(torch.cat([obs,acts],dim=-1)) # g (batch_size,num_agents,hid_dim)
+        combineds = None
+        for i in range(actives):
+            sencobs = encoded_obs[:,i,:].unsqueeze(1)
+            others = TensorExtension.extractSelect(encoded_obs_acts,[i],1)
+            combined = torch.cat([sencobs,others],dim=1) if others is not None else sencobs
+            combined = combined.unsqueeze(1)
+            if combineds is None:
+                combineds = combined
+            else:
+                combineds = torch.cat([combineds,combined],dim=1)
+        outputs['q_values'] = self.q_layer(combineds)
         outputs['active'] = torch.tensor([actives]).unsqueeze(1)
-        outputs['value'] = value.unsqueeze(1)
-        if actives < self.max_agents:
-            pads = torch.zeros((obs.shape[0], self.max_agents - actives, outputs['policy'].shape[-1]))
-            outputs['policy'] = torch.stack([outputs['policy'], pads], dim=1)
-            pads = torch.zeros((obs.shape[0], self.max_agents - actives, outputs['logits'].shape[-1]))
-            outputs['logits'] = torch.stack([outputs['logits'], pads], dim=1)
+        outputs['value'] = value
+        outputs['policy'] = TensorExtension.tensor_padding(outputs['policy'],self.max_agents,1)
+        outputs['logits'] = TensorExtension.tensor_padding(outputs['logits'],self.max_agents,1)
         outputs['policy'] = outputs['policy'].view(-1,self.max_agents*self.act_dim)
         outputs['logits'] = outputs['logits'].view(-1,self.max_agents*self.act_dim)
-        # ↓ 出力確認用
-        # for okey,output in outputs.items():
-        #     print(f"{okey}:{Printer.tensorPrint(output,False)}")
+        
+        """ # ↓ 出力確認用
+        print("{")
+        for okey,output in outputs.items():
+            print(f"\t'{okey}' : {Printer.tensorPrint(output,False)}")
+        print("}") """
         return outputs
+    
 
     # Training function
     def train(self, gamma, lam):

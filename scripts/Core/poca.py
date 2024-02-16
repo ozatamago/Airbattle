@@ -35,6 +35,7 @@ class Actor(nn.Module):
         self.hidden_layer2 = nn.Linear(hid_dim * 2, hid_dim) # second hidden layer
         self.action_layer = nn.Linear(hid_dim, act_dim) # action output layer
         self.softmax = nn.Softmax(dim=-1) # softmax activation function for log_prob output
+        self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None) -> dict:
         """
@@ -49,8 +50,8 @@ class Actor(nn.Module):
             - log_prob: log_prob tensor of shape (batch_size, act_dim)
         """
         x = F.leaky_relu(self.hidden_layer1(obs)) # pass through the first hidden layer and apply relu
-        x = F.leaky_relu(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
-        logits = self.action_layer(x) # pass through the action layer for logits output
+        x = self.sigmoid(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
+        logits = torch.logit(self.action_layer(x),eps=1e-06) # pass through the action layer for logits output
         log_prob = self.softmax(logits) # apply softmax for log_prob output
         return {'policy': logits, 'obs': obs, 'hidden': hidden, 'logits': logits, 'log_prob': log_prob}
 
@@ -62,10 +63,10 @@ class RSABlock(nn.Module):
         self.attention = nn.MultiheadAttention(output_size, num_heads)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        x = F.leaky_relu(self.input_layer(inputs)) # (batch_size, num_agents, output_size)
+        x = F.relu(self.input_layer(inputs)) # (batch_size, num_agents, output_size)
         attention_output, _ = self.attention(x, x, x) # (batch_size, num_agents, output_size)
         context = torch.add(attention_output, x) # (batch_size, num_agents, output_size)
-        context = F.leaky_relu(self.output_layer(context)) # (batch_size, num_agents, output_size)
+        context = F.relu(self.output_layer(context)) # (batch_size, num_agents, output_size)
         return context
 
 # MA-POCA Criticモデルの定義
@@ -116,7 +117,7 @@ class Q(nn.Module):
 class ObservationEncoder(nn.Module):
     def __init__(self,obs_dim: int, out_dim: int):
         super(ObservationEncoder,self).__init__()
-        self.encode_layer = nn.Linear(obs_dim,out_dim) # Q値計算
+        self.encode_layer = nn.Linear(obs_dim,out_dim)
 
     def forward(self,observations: torch.Tensor):
         encoded = self.encode_layer(observations)
@@ -125,7 +126,7 @@ class ObservationEncoder(nn.Module):
 class ObservationActionPairEncoder(nn.Module):
     def __init__(self,obs_dim: int,act_dim: int, out_dim: int):
         super(ObservationActionPairEncoder,self).__init__()
-        self.encode_layer = nn.Linear(obs_dim+act_dim,out_dim) # Q値計算
+        self.encode_layer = nn.Linear(obs_dim+act_dim,out_dim)
 
     def forward(self,observations: torch.Tensor,actions: torch.Tensor):
         encoded = self.encode_layer(torch.cat([observations,actions],dim=-1))

@@ -12,8 +12,9 @@ class TensorExtension:
         if baseTensor == None:
             return None
         sz = baseTensor.size(dim)
+        repeats = [((padTo-sz) if i == dim else 1) for i in range(len(baseTensor.shape))]
         if sz < padTo:
-            pad_tensor = torch.zeros(torch.index_select(baseTensor,dim,0)).repeat(dim,padTo-sz)
+            pad_tensor = torch.zeros(torch.index_select(baseTensor,dim ,torch.tensor([0])).shape).repeat(*repeats)
             return torch.cat([baseTensor, pad_tensor], dim=dim)
         return baseTensor
     

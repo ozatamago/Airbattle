@@ -256,10 +256,9 @@ class MyAgent(Agent):
         for jsonObs in self.jsonObservations:
             normalized_obs.append(self.normalizer.normalize(getObservationClassName(),jsonObs))
         # print("Obs:",len(normalized_obs))
-        obs_tensor = torch.tensor(np.array(normalized_obs,dtype=np.float32))
         # バッチ学習に対応させるためにパディング
-        obs_tensor = TensorExtension.tensor_padding(obs_tensor,len(self.parents.values()),0)
-        return obs_tensor # np.array(vec, dtype=np.float32)
+        # print(f"obs_tensor:{obs_tensor}")
+        return TensorExtension.tensor_padding(torch.tensor(np.array(normalized_obs,dtype=np.float32)),len(self.parents.values()),0) # np.array(vec, dtype=np.float32)
 
 
     def deploy(self,action):

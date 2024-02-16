@@ -9,6 +9,8 @@ class TensorExtension:
     
     @staticmethod
     def tensor_padding(baseTensor: torch.Tensor,padTo: int,dim: int = 1):
+        if baseTensor == None:
+            return None
         sz = baseTensor.size(dim)
         if sz < padTo:
             pad_tensor = torch.zeros(torch.index_select(baseTensor,dim,0)).repeat(dim,padTo-sz)

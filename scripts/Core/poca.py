@@ -102,13 +102,9 @@ class Critic(nn.Module):
     def forward(self, encoded_obs: torch.Tensor, actives: torch.Tensor) -> torch.Tensor:
         """
         エンコード後の全Agentの観測のテンソルを受け取って価値を返す
-        param: encoded_obs: エンコード後の観測テンソル (batch_size,num_agents,encoded_obs_dim)
+        param: encoded_obs: エンコード後の観測テンソル (batch_size,max_agents,encoded_obs_dim)
         param: actives: Agent数のテンソル (batch_size,1)
-<<<<<<< HEAD
         returns: value (batch_size,1), sliced_obs list(tensor (num_agents,encoded_obs_dim)) length == batch_size
-=======
-        returns: value (batch_size,1), sliced_obs list(tensor (1,encoded_obs_dim)) length == batch_size
->>>>>>> 151f5ec194de4021745a706bef4192ca95da5256
         """
         indices = [torch.arange(act.item()) for act in actives]
         # 頭に残りのAgentの数をつけておく

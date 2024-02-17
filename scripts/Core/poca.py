@@ -35,23 +35,11 @@ class Actor(nn.Module):
         self.hidden_layer2 = nn.Linear(hid_dim * 2, hid_dim) # second hidden layer
         self.action_layer = nn.Linear(hid_dim, act_dim) # action output layer
         self.softmax = nn.Softmax(dim=-1) # softmax activation function for log_prob output
-        self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None) -> dict:
-        """
-        Takes an observation tensor and a hidden state tensor as input and returns a dictionary containing action tensor, state value tensor, hidden state tensor, logits tensor, and log_prob tensor as output.
-        obs: observation tensor of shape (batch_size, obs_dim)
-        hidden: hidden state tensor of shape (batch_size, hid_dim)
-        returns: a dictionary containing the following tensors:
-            - policy: action tensor of shape (batch_size, act_dim)
-            - value: state value tensor of shape (batch_size, 1)
-            - hidden: hidden state tensor of shape (batch_size, hid_dim)
-            - logits: logits tensor of shape (batch_size, act_dim)
-            - log_prob: log_prob tensor of shape (batch_size, act_dim)
-        """
         x = F.leaky_relu(self.hidden_layer1(obs)) # pass through the first hidden layer and apply relu
-        x = self.sigmoid(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
-        logits = torch.logit(self.action_layer(x),eps=1e-06) # pass through the action layer for logits output
+        x = F.leaky_relu(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
+        logits = F.gelu(self.action_layer(x)) # pass through the action layer for logits output
         log_prob = self.softmax(logits) # apply softmax for log_prob output
         return {'policy': logits, 'obs': obs, 'hidden': hidden, 'logits': logits, 'log_prob': log_prob}
 

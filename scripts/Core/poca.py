@@ -86,26 +86,32 @@ class Actor(nn.Module):
 
 # MA-POCA Criticモデルの定義
 class Critic(nn.Module):
-    def __init__(self, encoded_obs_dim: int, hid_dim: int = 128, num_heads: int = 4):
+    def __init__(self, encoded_obs_dim: int, max_agents: int, hid_dim: int = 128, num_heads: int = 4):
         """
         価値関数を計算するCriticネットワーク
-        param: input_dim: Agentのエンコード後の観測テンソルの次元数 => (batch_size,num_agents,input_dim)
+        param: encoded_obs_dim: Agentのエンコード後の観測テンソルの次元数
+        param: max_agents: Agentの最大値
+        param: hid_dim: 内部のRSAの隠れ層の次元数
+        param: num_heads: 内部のRSAのヘッド数
         return: V値 (batch_size,1)
         """
         super(Critic,self).__init__()
+        self.max_agents = max_agents
         self.v_layer = V(encoded_obs_dim + 1,hid_dim,num_heads)
 
-    def forward(self, encoded_obs: torch.Tensor, remains: torch.Tensor) -> torch.Tensor:
+    def forward(self, encoded_obs: torch.Tensor, actives: torch.Tensor) -> torch.Tensor:
         """
         エンコード後の全Agentの観測のテンソルを受け取って価値を返す
         param: encoded_obs: エンコード後の観測テンソル (batch_size,num_agents,encoded_obs_dim)
-        param: remains: 正規化したAgent数のテンソル (batch_size,1)
-        returns: value (batch_size,1)
+        param: actives: Agent数のテンソル (batch_size,1)
+        returns: value (batch_size,1), sliced_obs list(tensor (1,encoded_obs_dim)) length == batch_size
         """
+        indices = [torch.arange(act.item()) for act in actives]
         # 頭に残りのAgentの数をつけておく
-        x = torch.cat([encoded_obs,remains.expand(encoded_obs.shape[0],encoded_obs.shape[1],1)],dim=-1)
-        value = self.v_layer(x) # (batch_size,1)
-        return value
+        x = torch.cat([encoded_obs,torch.div(actives,self.max_agents).expand(encoded_obs.shape[0],encoded_obs.shape[1],1)],dim=-1)
+        sliced_x = [x[bi].index_select(0,indice)[:,:-1].unsqueeze(0) for bi,indice in enumerate(indices)]
+        value = torch.cat([self.v_layer(x) for x in sliced_x],dim=0) # (batch_size,1)
+        return value, sliced_x
 
 class StateEncoder(nn.Module):
     def __init__(self,obs_dim: int,act_dim: int, out_dim: int):
@@ -116,7 +122,6 @@ class StateEncoder(nn.Module):
     def forward(self,observations: torch.Tensor,actions: torch.Tensor):
         num_agents = observations.size(1)
         indices = [torch.tensor(i) for i in range(num_agents)]
-        
         encoded_obs: torch.Tensor = self.obs_encode_layer(observations) # g (batch_size,num_agents,out_dim)
         encoded_obs_act: torch.Tensor = self.obs_act_encode_layer(torch.cat([observations,actions],dim=-1)) # f (batch_size, num_agents, out_dim)
         extracts = [(encoded_obs.index_select(1,indice),TensorExtension.extractSelect(1,encoded_obs_act,indice)) for indice in indices]
@@ -131,7 +136,7 @@ class MAPOCA(nn.Module):
         self.obs_dim = obs_dim
         self.actor = Actor(obs_dim, act_dim, hid_dim)
         self.state_encoder = StateEncoder(obs_dim,act_dim,hid_dim) # g(o), f(o,a), (g,f)
-        self.critic = Critic(hid_dim) # V値計算
+        self.critic = Critic(hid_dim, max_agents) # V値計算
         self.q_layer = Q(hid_dim,q_hid_dim) # Q値計算
         self.lr = lr
         self.max_agents = max_agents
@@ -157,7 +162,6 @@ class MAPOCA(nn.Module):
             outputs['encoded_obs'] = encoded_obs
             DictExtension.reduceNone(outputs,lambda o: TensorExtension.tensor_padding(o,self.max_agents,1))
             outputs['actives'] = torch.tensor([[actives]]) # (1,1) 切り出し用
-            outputs['remains'] = torch.tensor([[actives/self.max_agents]]) # (1,1) Critic入力用
             outputs['policy'] =outputs['policy'].view(-1,self.max_agents*self.act_dim)
             outputs['logits'] =outputs['logits'].view(-1,self.max_agents*self.act_dim)
             # ↓ 出力確認用

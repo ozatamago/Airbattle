@@ -63,3 +63,12 @@ class DictSearcher:
             return np.sum(l, axis=0,dtype=object)
         else:
             return l
+        
+    @staticmethod
+    def reduceNone(dict:dict,set_func = None):
+        dict_keys = list(dict.keys())
+        for d_key in dict_keys:
+            if dict[d_key] is None:
+                dict.pop(d_key)
+            elif set_func is not None:
+                dict[d_key] = set_func(dict[d_key])

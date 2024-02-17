@@ -8,6 +8,7 @@ import copy
 import numpy as np
 from ..Helper.Printer import Printer
 from ..Helper.TensorExtension import TensorExtension
+from ..Helper.DictSearcher import DictSearcher
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
@@ -173,8 +174,7 @@ class MAPOCA(nn.Module):
                     combineds = torch.cat([combineds,combined],dim=1)
             outputs['q_values'] = self.q_layer(combineds)
             outputs['combineds'] = combineds
-            for o_key in outputs.keys():
-                outputs[o_key] = TensorExtension.tensor_padding(outputs[o_key],self.max_agents,1)
+            DictSearcher.reduceNone(outputs,lambda o: TensorExtension.tensor_padding(o,self.max_agents,1))
             outputs['active'] = torch.tensor([[actives]]) # agents (1,1)
             outputs['value'] = self.critic(encoded_obs,actives/self.max_agents) # Vφ (1,1)
             outputs['policy'] =outputs['policy'].view(-1,self.max_agents*self.act_dim)
@@ -185,15 +185,11 @@ class MAPOCA(nn.Module):
                 print(f"\t'{okey}' : {Printer.tensorPrint(output,False)}")
             print("}") """
             for k, v in outputs.items():
-                if v is None:
-                    r_outputs[k] = None
-                elif k in r_outputs:
+                if k in r_outputs:
                     r_outputs[k].append(v)
                 else:
                     r_outputs[k] = [v]
-        for o_key in r_outputs.keys():
-            if r_outputs[o_key] is not None:
-                r_outputs[o_key] = torch.cat(r_outputs[o_key],dim=0)
+        DictSearcher.reduceNone(r_outputs,lambda o: torch.cat(o,dim=0))
         # ↓ 出力確認用
         """ print("{")
         for okey,output in r_outputs.items():

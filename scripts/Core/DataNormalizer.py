@@ -14,7 +14,7 @@ from PIL import Image
 from torch import le
 from . import *
 from ..Helper.Printer import PrintColor, Printer
-from ..Helper.DictSearcher import DictSearcher
+from ..Helper.DictExtension import DictExtension
 
 
 re_comp = re.compile(r"\D")
@@ -94,7 +94,7 @@ class SubNormalizer:
         if 'class' in top:
             if 'nullable' in top and top['nullable']:
                 # print(SubNormalizer.atStr(parents,Printer.info(f"padding nothing value")))
-                normlist.extend([0]*DictSearcher.SumChildValue(CLASS_SIZE_TREE,parents))
+                normlist.extend([0]*DictExtension.SumChildValue(CLASS_SIZE_TREE,parents))
             else:
                 # print(SubNormalizer.atStr(parents,f"search into {top['class']}/ignore:{ignores}"))
                 normlist.extend(self.normalize(top['class'],data,parents,ignores.copy()))
@@ -210,8 +210,8 @@ class SubNormalizer:
                                 else:
                                     normlist.append(np.double(data)/self.getValue(params))
                             # if len(normlist) - b_size != norm_size:
-                    norm_size = DictSearcher.Search(CLASS_SIZE_TREE,parents)
-                    p_total = DictSearcher.SumChildValue(norm_size)
+                    norm_size = DictExtension.Search(CLASS_SIZE_TREE,parents)
+                    p_total = DictExtension.SumChildValue(norm_size)
                     if p_total != len(normlist) - b_size:
                         # print(self.atStr(parents,Printer.warn(f"Please check keys, predict {norm_size} total: {p_total}/ got {len(normlist) - b_size}")))
                         assert len(normlist) - b_size <= p_total, "Its invalid"

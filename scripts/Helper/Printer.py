@@ -43,8 +43,19 @@ class Printer:
 	def err(message:str)->str:
 		return Printer.instant(message,PrintColor.RED)
 	@staticmethod
-	def tensorPrint(tensor:torch.Tensor,output_values=True):
+	def tensorInfoPrint(tensor:torch.Tensor,output_values: bool=True):
+		return "None" if tensor == None else f"shape({tensor.shape if isinstance(tensor,torch.Tensor) else [t.shape for t in tensor]})"+ (f" = {tensor}" if output_values else "")
+	@staticmethod
+	def tensorPrint(tensor:torch.Tensor,output_values: bool=True):
 		frame = inspect.currentframe()
 		names = {id(v): k for k, v in frame.f_back.f_locals.items()}
-		info = "None" if tensor == None else f"shape({tensor.shape if isinstance(tensor,torch.Tensor) else [t.shape for t in tensor]})"+ (f" = {tensor}" if output_values else "")
-		return f"{names[id(tensor)]}:{info}"
+		return 	f"{names[id(tensor)]}:{Printer.tensorInfoPrint(tensor,output_values)}"
+	@staticmethod
+	def tensorDictPrint(tensor_dict: dict,base_output_values: bool=True,output_values: dict= None,indent: str="  ",newlines: bool= True):
+		if output_values is None:
+			output_values = dict()
+		for k in tensor_dict.keys():
+			if k not in output_values:
+				output_values[k] = base_output_values
+		return indent.join(["{\n"]+[f"{k} : {Printer.tensorInfoPrint(v,output_values[k])}"+('\n' if newlines else '') for k,v in tensor_dict.items()]) + "}"
+

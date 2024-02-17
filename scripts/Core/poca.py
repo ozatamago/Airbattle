@@ -42,7 +42,9 @@ class Actor(nn.Module):
         x = F.leaky_relu(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
         logits = F.gelu(self.action_layer(x)) # pass through the action layer for logits output
         log_prob = self.softmax(logits) # apply softmax for log_prob output
-        return {'policy': logits, 'obs': obs, 'hidden': hidden, 'logits': logits, 'log_prob': log_prob}
+        ret = {'policy': logits, 'obs': obs, 'hidden': hidden, 'logits': logits, 'log_prob': log_prob}
+        DictSearcher.reduceNone(ret)
+        return ret
 
 class RSABlock(nn.Module):
     def __init__(self, input_size: int, output_size: int, num_heads: int):

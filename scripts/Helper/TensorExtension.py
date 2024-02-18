@@ -2,7 +2,7 @@ import torch
 
 class TensorExtension:
     @staticmethod
-    def extractSelect(tensor:torch.Tensor,extracts:list,dim:int):
+    def extractSelect(dim:int,tensor:torch.Tensor,extracts):
         assert len(tensor.shape) > dim, f"can't select dim {dim}, tensor shape is {tensor.shape}"
         indices = torch.tensor([i for i in range(tensor.size(dim)) if i not in extracts])
         return torch.index_select(tensor, dim, indices) if len(indices) > 0 else None

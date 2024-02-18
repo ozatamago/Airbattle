@@ -1,4 +1,4 @@
-from ..Helper.DictSearcher import DictSearcher
+from ..Helper.DictExtension import DictExtension
 from functools import lru_cache
 import os
 import yaml
@@ -18,7 +18,7 @@ def getBaseConfigContent(content,*valueKey):
     if len(valueKey) == 0:
         return BASE_CONFIG[content]
     else:
-        return DictSearcher.Search(getBaseConfigContent(content),valueKey)
+        return DictExtension.Search(getBaseConfigContent(content),valueKey)
 
 def getModelValue(*valueKey):
     return getBaseConfigContent('model',valueKey)
@@ -145,5 +145,5 @@ if CLASS_SIZE_TREE is None:
         CLASS_SIZE_TREE[class_name] = createSizeTree({'class':class_name},add_size_tree)
 
 if NORM_CLASS_SIZE is None:
-    NORM_CLASS_SIZE = {k:DictSearcher.SumChildValue(CLASS_SIZE_TREE,k) for k in CLASS_SIZE_TREE}
+    NORM_CLASS_SIZE = {k:DictExtension.SumChildValue(CLASS_SIZE_TREE,k) for k in CLASS_SIZE_TREE}
     print("predict size = ",NORM_CLASS_SIZE)

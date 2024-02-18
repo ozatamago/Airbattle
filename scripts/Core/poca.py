@@ -74,12 +74,13 @@ class Actor(nn.Module):
         self.hidden_layer1 = nn.Linear(obs_dim, hid_dim * 2) # first hidden layer
         self.hidden_layer2 = nn.Linear(hid_dim * 2, hid_dim) # second hidden layer
         self.action_layer = nn.Linear(hid_dim, act_dim) # action output layer
+        self.elu = nn.ELU()
         self.softmax = nn.Softmax(dim=-1) # softmax activation function for log_prob output
 
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None) -> dict:
-        x = F.leaky_relu(self.hidden_layer1(obs)) # pass through the first hidden layer and apply relu
-        x = F.leaky_relu(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
-        logits = F.gelu(self.action_layer(x)) # pass through the action layer for logits output
+        x = self.elu(self.hidden_layer1(obs)) # pass through the first hidden layer and apply relu
+        x = F.relu(self.hidden_layer2(x)) # pass through the second hidden layer and apply relu
+        logits = F.relu(self.action_layer(x)) # pass through the action layer for logits output
         ret = {'policy':logits,'logits': logits, 'hidden': hidden}
         DictExtension.reduceNone(ret)
         return ret
@@ -145,23 +146,21 @@ class MAPOCA(nn.Module):
     
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None) -> dict:
         r_outputs = dict()
-        for b_obs in obs: # bobs = (num_agents,obs_dim)
+        actives = obs[:,0]
+        obs = torch.stack(torch.split(obs[:,1:],self.obs_dim,dim=-1),dim=1).to(torch.float32)
+        # print(Printer.tensorPrint(obs,False))
+        for bi in range(obs.size(0)):
+            batch_obs = obs.index_select(0,torch.tensor(bi)) # (1,max_agents,obs_dim)
+            batch_active = int(actives[bi].item())
+            active_obs = batch_obs.index_select(1,torch.arange(batch_active))
             outputs = dict()
-            active_obs = []
-            for sobs in b_obs: # sobs = (obs_dim,)
-                if sobs[0] == 1:
-                    sobs = sobs.unsqueeze(0) # sobs = (1,obs_dim)
-                    active_obs.append(sobs)
-                    output = self.actor(sobs, hidden)
-                    DictExtension.StackItems(outputs,output)
+            [DictExtension.StackItems(outputs,self.actor(batch_obs[:,ai,:], hidden)) for ai in range(batch_active)]
             DictExtension.reduceNone(outputs,lambda o: torch.stack(o,dim=1))
-            actives = len(active_obs)
-            active_obs = torch.stack(active_obs,dim=1)
             encoded_obs, _, encoded_counterfactual = self.state_encoder(active_obs,outputs['policy']) # g (1,num_agents,hid_dim), f (1, num_agents, hid_dim), (1, num_agents, num_agents, hid_dim)
-            outputs['q_values'] = self.q_layer(encoded_counterfactual)
+            outputs['encoded_counterfactual'] = encoded_counterfactual
             outputs['encoded_obs'] = encoded_obs
             DictExtension.reduceNone(outputs,lambda o: TensorExtension.tensor_padding(o,self.max_agents,1))
-            outputs['actives'] = torch.tensor([[actives]]) # (1,1) 切り出し用
+            outputs['actives'] = torch.tensor([[batch_active]]) # (1,1) 切り出し用
             outputs['policy'] =outputs['policy'].view(-1,self.max_agents*self.act_dim)
             outputs['logits'] =outputs['logits'].view(-1,self.max_agents*self.act_dim)
             # ↓ 出力確認用

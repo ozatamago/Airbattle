@@ -158,13 +158,11 @@ class MyAgent(Agent):
         self.ourMotion=[]
         self.ourObservables=[]
         self.jsonObservations = []
-        self.actives = []
         for pIdx,parent in enumerate(self.parents.values()):
             if(parent.isAlive()):
                 firstAlive=parent
                 break
         for pIdx,parent in enumerate(self.parents.values()):
-            self.actives.append(parent.isAlive())
             if(parent.isAlive()):
                 self.jsonObservations.append(str(parent.observables))
                 #残存していればobservablesそのもの
@@ -254,11 +252,13 @@ class MyAgent(Agent):
         # print("vec_dim: ", len(vec))
         normalized_obs = []
         for jsonObs in self.jsonObservations:
-            normalized_obs.append(self.normalizer.normalize(getObservationClassName(),jsonObs))
+            normalized_obs.append(np.array(self.normalizer.normalize(getObservationClassName(),jsonObs),dtype=np.float32))
         # print("Obs:",len(normalized_obs))
         # バッチ学習に対応させるためにパディング
         # print(f"obs_tensor:{obs_tensor}")
-        return TensorExtension.tensor_padding(torch.tensor(np.array(normalized_obs,dtype=np.float32)),len(self.parents.values()),0) # np.array(vec, dtype=np.float32)
+        actives = len(normalized_obs)
+        max_agents = len(self.parents.values())
+        return np.append(actives,np.pad(np.concatenate(normalized_obs),((0,normalized_obs[0].size*(max_agents-actives)))))
 
 
     def deploy(self,action):

@@ -25,9 +25,11 @@ class Manager(ModelBase):
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
-        return self.getModelManager().actor_critic(obs,hidden) #retsだけ返す
+        return self.getModelManager().mapoca(obs,hidden) #retsだけ返す
     def init_hidden(self,hidden=None):
         # RNNを使用しない場合、ダミーの隠れ状態を返す
         return None
+    def parameters(self, recurse=True):
+        return self.getModelManager().mapoca.parameters(recurse)
     # def train(self,)
     

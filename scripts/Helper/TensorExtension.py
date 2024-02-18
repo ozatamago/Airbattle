@@ -17,4 +17,7 @@ class TensorExtension:
             pad_tensor = torch.zeros(torch.index_select(baseTensor,dim ,torch.tensor([0])).shape).repeat(*repeats)
             return torch.cat([baseTensor, pad_tensor], dim=dim)
         return baseTensor
+    @staticmethod
+    def has_nan(tensor: torch.Tensor):
+        return any(torch.isnan(tensor))
     

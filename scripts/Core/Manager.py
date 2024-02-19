@@ -15,13 +15,8 @@ def getBatchSize(obs,space):
 class Manager(ModelBase):
     def __init__(self,obs_space, ac_space, action_dist_class, model_config):
         super().__init__(obs_space, ac_space, action_dist_class, model_config)
-        
-        self.modelmanager = ModelManager(self.getObservationSize(),getActions(),2,getHyperParameters('critic')['learningRate'])
+        self.modelmanager = ModelManager(getObservationSize(),getActions(),2,getHyperParameters('critic')['learningRate'])
         self.modelmanager.load_models(ModelManager.LoadMode.NEW)
-    
-    @lru_cache(maxsize=1)
-    def getObservationSize(self):
-        return getDataSize(getObservationClassName())
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
@@ -31,5 +26,7 @@ class Manager(ModelBase):
         return None
     def parameters(self, recurse=True):
         return self.getModelManager().mapoca.parameters(recurse)
-    # def train(self,)
+    def updateNetworks(self,obs,rew,action_space):
+        self.getModelManager().mapoca.updateNetworks(obs,rew,action_space)
+        self.getModelManager().save_models()
     

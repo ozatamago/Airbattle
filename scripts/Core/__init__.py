@@ -47,6 +47,12 @@ def getActorModelName():
 def getCriticModelName():
     return getModelValue('criticModelName')
 @lru_cache(maxsize=1)
+def getStateEncoderModelName():
+    return getModelValue('stateEncoderModelName')
+@lru_cache(maxsize=1)
+def getQModelName():
+    return getModelValue('qModelName')
+@lru_cache(maxsize=1)
 def getNormConfigPath():
     return getConfigValue('normConfigName')
 @lru_cache(maxsize=1)
@@ -128,6 +134,13 @@ def getDataSize(class_name):
     assert class_name in NORM_CLASS_SIZE, f"Unknown key {class_name}. You can select a key which {list(NORM_CLASS_SIZE.keys())}"
     return NORM_CLASS_SIZE[class_name]
 
+@lru_cache(maxsize=1)
+def getObservationSize():
+    return getDataSize(getObservationClassName())
+
+@lru_cache(maxsize=1)
+def getTotalObservationSize():
+    return getObservationSize()*getNumAgents() + 1
 def onehotSize(length:int):
     if length == 1:
         return 0

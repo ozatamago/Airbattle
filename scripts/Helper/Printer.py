@@ -57,5 +57,13 @@ class Printer:
 		for k in tensor_dict.keys():
 			if k not in output_values:
 				output_values[k] = base_output_values
-		return indent.join(["{\n"]+[f"{k} : {Printer.tensorInfoPrint(v,output_values[k])}"+('\n' if newlines else '') for k,v in tensor_dict.items()]) + "}"
+		return indent.join(["{\n"]+[f"{k} : {Printer.tensorInfoPrint(v,output_values[k])}"+Printer.ifstr(newlines,'\n') for k,v in tensor_dict.items()]) + "}"
+	@staticmethod
+	def anotateLine(extrainfo: str='',print_code: bool=False):
+		frame = inspect.currentframe().f_back
+		return f"File \"{frame.f_code.co_filename}\", line {frame.f_lineno}, in {frame.f_code.co_name}"+Printer.ifstr(extrainfo!='',extrainfo)+Printer.ifstr(print_code,"\n"+f"{frame.f_code}")
+	@staticmethod
+	def ifstr(conditional:bool,str:str):
+		return str if conditional else ""
+  
 

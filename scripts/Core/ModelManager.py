@@ -21,7 +21,7 @@ class ModelManager:
         CHOICE = 'choice' # 既存のモデルを選択して読み込む
         LATEST = 'latest' # 最新のモデルを読み込む
         NEW = 'new' # 新しいモデルを作成する
-    mapoca:nn.Module
+    mapoca:MAPOCA
     def __init__(self, observation_size, action_dim,max_agents, lr):
         """
         ModelManagerのコンストラクタ
@@ -53,7 +53,7 @@ class ModelManager:
             i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
             folderpath = f"{self.model_folder}/{i}/"
         # モデルの重みを保存する
-        torch.save(self.mapoca.state_dict(), folderpath)
+        self.mapoca.save_state_dict(folderpath)
 
     def load_models(self,mode:LoadMode=LoadMode.LATEST,num=None):
         """

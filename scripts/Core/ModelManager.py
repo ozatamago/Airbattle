@@ -43,15 +43,15 @@ class ModelManager:
         :param mode: 保存モード（SaveModeの定数のいずれか）
         :param i: 保存するモデルの番号（Noneの場合は自動で決定）
         """
-        # モデルのフォルダーが存在しない場合は作成する
-        if not os.path.exists(self.model_folder):
-            os.makedirs(self.model_folder)
         # モデルのファイル名を作成する
         if mode is self.SaveMode.UPDATE:
             folderpath = self.folderpath
         else:
             i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
             folderpath = f"{self.model_folder}/{i}/"
+        # モデルのフォルダーが存在しない場合は作成する
+        if not os.path.exists(folderpath):
+            os.makedirs(folderpath)
         # モデルの重みを保存する
         self.mapoca.save_state_dict(folderpath)
 
@@ -72,25 +72,27 @@ class ModelManager:
         folderpath = f"{self.model_folder}/{load_i}/"
         # ActorCriticモデルの定義を作成する
         self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.lr)
-        if mode is not self.LoadMode.NEW:
+        if mode is not self.LoadMode.NEW and os.path.exists(folderpath):
             # ActorCriticモデルの重みを読み込む
             self.mapoca.load_state_dict(folderpath)
     
-    def getModelNumbers(self):
+    def getModelNumbers(self,filepath: str=None):
         """
         モデルのフォルダーにあるモデルの番号のリストを返すメソッド
         :return: モデルの番号のリスト
         """
-        if not os.path.exists(self.model_folder):
+        if filepath is None:
+            filepath = self.model_folder
+        if not os.path.exists(filepath):
             return []
-        return [int(f) for f in os.listdir(self.model_folder) if os.path.isdir(os.path.join(self.model_folder, f))]
+        return [int(f) for f in os.listdir(filepath) if os.path.isdir(os.path.join(filepath, f))]
     
-    def getModelMaxNumber(self):
+    def getModelMaxNumber(self,filepath: str=None):
         """
         モデルのフォルダーにあるモデルの番号の最大値を返すメソッド(何もないときは0を返す)
         :return: モデルの番号
         """
-        model_nums = self.getModelNumbers()
+        model_nums = self.getModelNumbers(filepath)
         return 0 if len(model_nums) == 0 else max(model_nums)
     
 

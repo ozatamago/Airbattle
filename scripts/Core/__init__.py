@@ -44,8 +44,8 @@ def getObservationClassName():
 def getActorModelName():
     return getModelValue('actorModelName')
 @lru_cache(maxsize=1)
-def getCriticModelName():
-    return getModelValue('criticModelName')
+def getVModelName():
+    return getModelValue('vModelName')
 @lru_cache(maxsize=1)
 def getStateEncoderModelName():
     return getModelValue('stateEncoderModelName')
@@ -65,7 +65,7 @@ def getHyperParameters(model:str):
 if NORM_CONFIG is None:
     with open(os.path.join(os.path.dirname(__file__),CONFIGPATH,getNormConfigPath()), 'r') as yml:
         NORM_CONFIG:dict = yaml.safe_load(yml)
-        print("norm_config was loaded!")
+        #print("norm_config was loaded!")
 
 CLASS_NORM:dict = NORM_CONFIG['class']
 DTYPE_SIZES = NORM_CONFIG['sizeparam']
@@ -159,4 +159,4 @@ if CLASS_SIZE_TREE is None:
 
 if NORM_CLASS_SIZE is None:
     NORM_CLASS_SIZE = {k:DictExtension.SumChildValue(CLASS_SIZE_TREE,k) for k in CLASS_SIZE_TREE}
-    print("predict size = ",NORM_CLASS_SIZE)
+    # print("predict size = ",NORM_CLASS_SIZE)

@@ -251,7 +251,7 @@ class MyAgent(Agent):
         # print("vec_dim: ", len(vec))
         normalized_obs = []
         for jsonObs in self.jsonObservations:
-            normalized_obs.append(self.normalizer.normalize(getObservationClassName(),jsonObs))
+            normalized_obs.append(np.array(self.normalizer.normalize(getObservationClassName(),jsonObs),dtype=np.float32))
         # print("Obs:",len(normalized_obs))
         # バッチ学習に対応させるためにパディング
         # print(f"obs_tensor:{obs_tensor}")
@@ -261,8 +261,7 @@ class MyAgent(Agent):
             main_obs = np.pad(np.concatenate(normalized_obs),((0,getObservationSize()*(max_agents-actives))))
         else:
             main_obs = np.zeros(getObservationSize()*max_agents)
-        main_obs = main_obs.astype(np.float32)
-        return np.append(actives,main_obs)#.reshape(1,-1)
+        return np.append(actives,main_obs).astype(np.float32)#.reshape(1,-1)
 
 
     def deploy(self,action):

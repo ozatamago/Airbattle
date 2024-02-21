@@ -44,8 +44,14 @@ def getObservationClassName():
 def getActorModelName():
     return getModelValue('actorModelName')
 @lru_cache(maxsize=1)
-def getCriticModelName():
-    return getModelValue('criticModelName')
+def getVModelName():
+    return getModelValue('vModelName')
+@lru_cache(maxsize=1)
+def getStateEncoderModelName():
+    return getModelValue('stateEncoderModelName')
+@lru_cache(maxsize=1)
+def getQModelName():
+    return getModelValue('qModelName')
 @lru_cache(maxsize=1)
 def getNormConfigPath():
     return getConfigValue('normConfigName')
@@ -59,7 +65,7 @@ def getHyperParameters(model:str):
 if NORM_CONFIG is None:
     with open(os.path.join(os.path.dirname(__file__),CONFIGPATH,getNormConfigPath()), 'r') as yml:
         NORM_CONFIG:dict = yaml.safe_load(yml)
-        print("norm_config was loaded!")
+        #print("norm_config was loaded!")
 
 CLASS_NORM:dict = NORM_CONFIG['class']
 DTYPE_SIZES = NORM_CONFIG['sizeparam']
@@ -128,6 +134,13 @@ def getDataSize(class_name):
     assert class_name in NORM_CLASS_SIZE, f"Unknown key {class_name}. You can select a key which {list(NORM_CLASS_SIZE.keys())}"
     return NORM_CLASS_SIZE[class_name]
 
+@lru_cache(maxsize=1)
+def getObservationSize():
+    return getDataSize(getObservationClassName())
+
+@lru_cache(maxsize=1)
+def getTotalObservationSize():
+    return getObservationSize()*getNumAgents() + 1
 def onehotSize(length:int):
     if length == 1:
         return 0
@@ -146,4 +159,4 @@ if CLASS_SIZE_TREE is None:
 
 if NORM_CLASS_SIZE is None:
     NORM_CLASS_SIZE = {k:DictExtension.SumChildValue(CLASS_SIZE_TREE,k) for k in CLASS_SIZE_TREE}
-    print("predict size = ",NORM_CLASS_SIZE)
+    # print("predict size = ",NORM_CLASS_SIZE)

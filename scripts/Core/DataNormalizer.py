@@ -54,7 +54,7 @@ class DataNormalizer:
                         mayvalue = getattr(stdclassinstance,stdclasskey)
                         # print(stdclasskey,"value =",mayvalue)
                         cls.stdparam[stdclasskey] = mayvalue
-            print("Fields:",cls.stdparam)
+            # print("Fields:",cls.stdparam)
             with open(stdParamsPath, 'w') as jsn:
                 json.dump(cls.stdparam,jsn, indent=2)
         # print(cls.norm_class_size)
@@ -187,9 +187,9 @@ class SubNormalizer:
                         else:
                             b_size = len(normlist)
                             if normtype == 'value':
-                                normlist.append(params)
+                                normlist.append(float(params))
                             elif normtype == 'mapping':
-                                normlist.append(params[data])
+                                normlist.append(float(params[data]))
                             elif normtype == 'onehot':
                                 normlist.extend(SubNormalizer.onehot(params,str(data)))
                             elif normtype == 'max':
@@ -206,9 +206,9 @@ class SubNormalizer:
                                                 copiedData[2] /= self.getValue(value)
                                     else:
                                         copiedData = [d/params for d in copiedData]
-                                    normlist.extend(np.double(copiedData))
+                                    normlist.extend(np.float32(copiedData))
                                 else:
-                                    normlist.append(np.double(data)/self.getValue(params))
+                                    normlist.append(np.float32(data)/self.getValue(params))
                             # if len(normlist) - b_size != norm_size:
                     norm_size = DictExtension.Search(CLASS_SIZE_TREE,parents)
                     p_total = DictExtension.SumChildValue(norm_size)
@@ -223,11 +223,11 @@ class SubNormalizer:
     def getValue(self,v):
         if isinstance(v,dict):
             if 'stdkey' in v:
-                return np.double(self.stdparam[v['stdkey']])
+                return np.float32(self.stdparam[v['stdkey']])
             elif 'storedvalue' in v:
                 return SubNormalizer.getRootValue(self.storeddatas,v['storedvalue']['keys'])
         else:
-            return np.double(v)
+            return np.float32(v)
     @staticmethod
     def atStr(dir:list,message:str,hideParents=False):
         str_dir = [str(d) for d in dir]

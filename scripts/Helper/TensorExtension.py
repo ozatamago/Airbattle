@@ -8,13 +8,18 @@ class TensorExtension:
         return torch.index_select(tensor, dim, indices) if len(indices) > 0 else None
     
     @staticmethod
-    def tensor_padding(baseTensor: torch.Tensor,padTo: int,dim: int = 1):
+    def tensor_padding(baseTensor: torch.Tensor,padTo: int,dim: int,pad_right: bool=True,pad_add: bool=False, pad_value = 1e-8, dtype: torch = torch.float32):
         if baseTensor == None:
             return None
-        sz = baseTensor.size(dim)
-        repeats = [((padTo-sz) if i == dim else 1) for i in range(len(baseTensor.shape))]
-        if sz < padTo:
-            pad_tensor = torch.zeros(torch.index_select(baseTensor,dim ,torch.tensor([0])).shape).repeat(*repeats)
-            return torch.cat([baseTensor, pad_tensor], dim=dim)
-        return baseTensor
+        delta = padTo
+        if not pad_add:
+            delta = padTo - baseTensor.size(dim)
+        if delta > 0:
+            pad_shape = list(baseTensor.shape)
+            pad_shape[dim] = delta
+            return torch.cat(([baseTensor, torch.full(pad_shape,pad_value)] if pad_right else [torch.full(pad_shape,pad_value),baseTensor]), dim=dim).to(dtype)
+        return baseTensor.to(dtype)
+    @staticmethod
+    def has_nan(tensor: torch.Tensor):
+        return any(torch.isnan(tensor))
     

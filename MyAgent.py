@@ -1,10 +1,11 @@
 # from Test import getUserAgentClass
+import sys
 import numpy as np
 import torch
 from gymnasium import spaces
 from math import cos, sin, atan2, sqrt
 from ASRCAISim1.libCore import Agent, MotionState, Track3D, Track2D, getValueFromJsonKRD, deg2rad, StaticCollisionAvoider2D, LinearSegment, AltitudeKeeper
-from .scripts.Core import getObservationClassName
+from .scripts.Core import getObservationClassName, getObservationSize, getNumAgents
 from .scripts.Core.DataNormalizer import DataNormalizer
 from .scripts.Helper.TensorExtension import TensorExtension
 
@@ -157,16 +158,13 @@ class MyAgent(Agent):
         # 味方機(自機含む)
         self.ourMotion=[]
         self.ourObservables=[]
-        self.jsonObservations = []
-        self.actives = []
+        self.jsonObservations = [str(parent.observables) for parent in self.parents.values() if parent.isAlive()]
         for pIdx,parent in enumerate(self.parents.values()):
             if(parent.isAlive()):
                 firstAlive=parent
                 break
         for pIdx,parent in enumerate(self.parents.values()):
-            self.actives.append(parent.isAlive())
             if(parent.isAlive()):
-                self.jsonObservations.append(str(parent.observables))
                 #残存していればobservablesそのもの
                 self.ourMotion.append(parent.observables["motion"]())
                 # print("===========================================================")
@@ -250,15 +248,20 @@ class MyAgent(Agent):
                 m_vec += [0.0]*6
 
         vec = om_vec + lt_vec + m_vec + f_vec
-
         # print("vec_dim: ", len(vec))
         normalized_obs = []
         for jsonObs in self.jsonObservations:
-            normalized_obs.append(self.normalizer.normalize(getObservationClassName(),jsonObs))
+            normalized_obs.append(np.array(self.normalizer.normalize(getObservationClassName(),jsonObs),dtype=np.float32))
         # print("Obs:",len(normalized_obs))
         # バッチ学習に対応させるためにパディング
         # print(f"obs_tensor:{obs_tensor}")
-        return TensorExtension.tensor_padding(torch.tensor(np.array(normalized_obs,dtype=np.float32)),len(self.parents.values()),0) # np.array(vec, dtype=np.float32)
+        actives = len(normalized_obs)
+        max_agents = getNumAgents()
+        if actives > 0:
+            main_obs = np.pad(np.concatenate(normalized_obs),((0,getObservationSize()*(max_agents-actives))))
+        else:
+            main_obs = np.zeros(getObservationSize()*max_agents)
+        return np.append(actives,main_obs).astype(np.float32)#.reshape(1,-1)
 
 
     def deploy(self,action):

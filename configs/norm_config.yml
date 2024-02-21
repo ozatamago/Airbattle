@@ -3,10 +3,10 @@ stdparam:
   dev:
     # ユーザー定義 使いたいときは *(&以降の文字列)と表記する
     # 例）velmaxを使いたいときは *vmax と書く
-    velmax: &vmax 667 #戦闘機の最高速度 2400km/hとする
+    velmax: &vmax 1010.505 #戦闘機の最高速度 3637.818km/hとする
     accelmax: &amax 36.53 #戦闘機の最高加速度 sqrt(vmax*2)m/s とする
     omegamax: &omax 40 #戦闘機の最高角速度 40deg/sとする
-
+    pi: &pi 3.14159265359
   class:
     # 動的に値を取得する
     # 取得した値は std: 変数名 で参照できる
@@ -35,8 +35,8 @@ stdconst:
     dtype: double
     norm: max
     params:
+      overflow: -1
       stdkey: maxTime
-
   posnorm: &posnorm
     dtype: vector3
     norm: max
@@ -104,10 +104,12 @@ class:
       norm: pass
     az:
       dtype: double
-      norm: pass
+      norm: max
+      params: *pi
     el:
       dtype: double
-      norm: pass
+      norm: max
+      params: *pi
     time: *timenorm
 
   Track2DS: # 処理を安定化させるため、再帰構造になっているものは終了用(再帰しない)のクラスを用意しておく

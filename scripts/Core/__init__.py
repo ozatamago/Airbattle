@@ -140,7 +140,7 @@ def getObservationSize():
 
 @lru_cache(maxsize=1)
 def getTotalObservationSize():
-    return getObservationSize()*getNumAgents() + 1
+    return getObservationSize()*getNumAgents() + 2
 def onehotSize(length:int):
     if length == 1:
         return 0

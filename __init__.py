@@ -29,8 +29,9 @@ json ファイル等を用意して modelConfig を記述し、Factory にモデ
 }の"config"の部分に記載される{...}のdictが該当する。
 """    
 def getUserAgentModelConfig(args={}):
-    configs=json.load(open(os.path.join(os.path.dirname(__file__),"agent_config.json"),"r"))
-
+    # with openをしないとファイルが開きっぱなしになる
+    with open(os.path.join(os.path.dirname(__file__),"agent_config.json"),"r") as f:
+        configs = json.load(f)
     return configs
 
 #③Agentの種類(一つのAgentインスタンスで1機を操作するのか、陣営全体を操作するのか)を返す関数を定義
@@ -45,8 +46,9 @@ def isUserAgentSingleAsset(args={}):
 def getUserPolicy(args={}):
     from .scripts.Core.Manager import Manager
     import glob
-    model_config=yaml.safe_load(open(os.path.join(os.path.dirname(__file__),"configs/base_config.yml"),"r"))
-    print(model_config)
+    with open(os.path.join(os.path.dirname(__file__),"configs/base_config.yml"),"r") as yml:
+        model_config=yaml.safe_load(yml)
+    # print(model_config)
     weightPath=None
     if(args is not None):
         weightPath=args.get("weightPath",None)

@@ -8,6 +8,7 @@ from ASRCAISim1.libCore import Agent, MotionState, Track3D, Track2D, getValueFro
 from .scripts.Core import getObservationClassName, getObservationSize, getNumAgents
 from .scripts.Core.DataNormalizer import DataNormalizer
 from .scripts.Helper.TensorExtension import TensorExtension
+from .scripts.Helper.ListExtension import ListExtension
 
 def getUserAgentClass(args={}):
     # ここで定義したエージェントクラスを返す
@@ -251,7 +252,10 @@ class MyAgent(Agent):
         # print("vec_dim: ", len(vec))
         normalized_obs = []
         for jsonObs in self.jsonObservations:
-            normalized_obs.append(np.array(self.normalizer.normalize(getObservationClassName(),jsonObs),dtype=np.float32))
+            add_data = self.normalizer.normalize(getObservationClassName(),jsonObs)
+            check = [(ad > 16777216 or ad < -16777216) for ad in add_data]
+            assert not any(check), f"Future Error: OverFlowCasting: {[f'{i}:{d}' for i,d in enumerate(add_data) if check[i]]}"
+            normalized_obs.append(np.array(add_data,dtype=np.float32))
         # print("Obs:",len(normalized_obs))
         # バッチ学習に対応させるためにパディング
         # print(f"obs_tensor:{obs_tensor}")
@@ -261,7 +265,9 @@ class MyAgent(Agent):
             main_obs = np.pad(np.concatenate(normalized_obs),((0,getObservationSize()*(max_agents-actives))))
         else:
             main_obs = np.zeros(getObservationSize()*max_agents)
-        return np.append(actives,main_obs).astype(np.float32)#.reshape(1,-1)
+        out_obs = np.append(np.append(self.manager.getTime(),actives),main_obs).astype(np.float32)#.reshape(1,-1)
+        assert not ListExtension.hasInfinate(out_obs), f"observation has Infinate! = {out_obs}"
+        return out_obs
 
 
     def deploy(self,action):

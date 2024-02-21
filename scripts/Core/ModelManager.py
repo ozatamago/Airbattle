@@ -5,8 +5,27 @@ from .poca import MAPOCA
 
 class ModelManager:
     """
-    観測値と行動空間の次元数、Actorの数に応じてCriticモデルとActorモデルの管理を行うクラス
+    マルチエージェント強化学習用モデル管理クラス
+
+    MAPOCAモデルの保存・読み込み、モデル番号の取得などの機能を提供する。
+
+    **属性**
+
+    * observation_size: 観測値の次元数
+    * action_dim: 行動空間の次元数
+    * max_agents: Actorの最大数
+    * lr: 学習率
+    * modelloaded: モデルが読み込まれているかどうか
+    * model_folder: モデルのフォルダーパス
+
+    **メソッド**
+
+    * save_models(mode:SaveMode=SaveMode.UPDATE,i=None): モデルを保存する
+    * load_models(mode:LoadMode=LoadMode.LATEST,num=None,strict: bool = True): モデルを読み込む
+    * getModelNumbers(filepath: str=None): モデル番号のリストを取得する
+    * getModelMaxNumber(filepath: str=None): 最大のモデル番号を取得する
     """
+
     class SaveMode:
         """
         モデルの保存モードを表すクラス
@@ -21,29 +40,37 @@ class ModelManager:
         CHOICE = 'choice' # 既存のモデルを選択して読み込む
         LATEST = 'latest' # 最新のモデルを読み込む
         NEW = 'new' # 新しいモデルを作成する
-    mapoca:MAPOCA
+    
     def __init__(self, observation_size, action_dim,max_agents, lr):
         """
-        ModelManagerのコンストラクタ
-        :param observation_size: 観測値の次元数
-        :param action_dim: 行動空間の次元数
-        :param lr: 学習率
+        ModelManagerクラスの初期化
+
+        Args:
+            observation_size: 観測値の次元数
+            action_dim: 行動空間の次元数
+            max_agents: Actorの最大数
+            lr: 学習率
         """
-        # 観測値の次元数、行動空間の次元数、Actorの数を属性として保持する
         self.observation_size = observation_size
         self.action_dim = action_dim
         self.max_agents = max_agents
         self.lr = lr
+        self.modelloaded = False
         # モデルのフォルダーのパスを作成する
         self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
 
     def save_models(self,mode:SaveMode=SaveMode.UPDATE,i=None):
         """
-        CriticモデルとActorモデルをそれぞれ保存するメソッド
-        :param mode: 保存モード（SaveModeの定数のいずれか）
-        :param i: 保存するモデルの番号（Noneの場合は自動で決定）
+        モデルを保存する
+
+        Args:
+            mode: 保存モード
+            - SaveMode.CHOICE: 既存のモデルを選択して上書きする
+            - SaveMode.UPDATE: 現在のモデルを上書きする
+            - SaveMode.NEW: 新しいモデルとして保存する
+
+            i: モデル番号 (SaveMode.CHOICE または SaveMode.NEW の場合のみ必要)
         """
-        # モデルのファイル名を作成する
         if mode is self.SaveMode.UPDATE:
             folderpath = self.folderpath
         else:
@@ -55,13 +82,19 @@ class ModelManager:
         # モデルの重みを保存する
         self.mapoca.save_state_dict(folderpath)
 
-    def load_models(self,mode:LoadMode=LoadMode.LATEST,num=None):
+    def load_models(self,mode:LoadMode=LoadMode.LATEST,num=None,strict: bool = True):
         """
-        CriticモデルとActorモデルの配列をそれぞれ読み込むメソッド
-        :param mode: 読み込みモード（LoadModeの定数のいずれか）
-        :param num: 読み込むモデルの番号（Noneの場合は自動で決定）
+        モデルを読み込む
+
+        Args:
+            mode: 読み込みモード
+            - LoadMode.CHOICE: 既存のモデルを選択して読み込む
+            - LoadMode.LATEST: 最新のモデルを読み込む
+            - LoadMode.NEW: 新しいモデルを作成する
+            
+            num: モデル番号 (LoadMode.CHOICE の場合のみ必要)
+            strict: 重みの互換性を厳密にチェックするかどうか
         """
-        # モデルのファイル名を作成する
         if mode is self.LoadMode.LATEST:
             i = self.getModelMaxNumber()
             load_i = i
@@ -70,16 +103,22 @@ class ModelManager:
             i = load_i if mode is self.LoadMode.CHOICE else (self.getModelMaxNumber()+ 1)
         self.folderpath = f"{self.model_folder}/{i}/"
         folderpath = f"{self.model_folder}/{load_i}/"
-        # ActorCriticモデルの定義を作成する
+        # MAPOCAモデルの定義を作成する
         self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.lr)
         if mode is not self.LoadMode.NEW and os.path.exists(folderpath):
-            # ActorCriticモデルの重みを読み込む
-            self.mapoca.load_state_dict(folderpath)
+            # MAPOCAモデルの重みを読み込む
+            self.mapoca.load_state_dict(folderpath,strict)
+        self.modelloaded = True
     
     def getModelNumbers(self,filepath: str=None):
         """
-        モデルのフォルダーにあるモデルの番号のリストを返すメソッド
-        :return: モデルの番号のリスト
+        指定されたフォルダー内のモデル番号のリストを取得する。
+
+        Args:
+            filepath: モデルのフォルダーパス
+
+        Returns:
+            モデル番号のリスト
         """
         if filepath is None:
             filepath = self.model_folder
@@ -89,8 +128,13 @@ class ModelManager:
     
     def getModelMaxNumber(self,filepath: str=None):
         """
-        モデルのフォルダーにあるモデルの番号の最大値を返すメソッド(何もないときは0を返す)
-        :return: モデルの番号
+        指定されたフォルダー内の最大モデル番号を取得する
+
+        Args:
+            filepath: モデルのフォルダーパス
+
+        Returns:
+            最大モデル番号
         """
         model_nums = self.getModelNumbers(filepath)
         return 0 if len(model_nums) == 0 else max(model_nums)

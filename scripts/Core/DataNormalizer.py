@@ -10,13 +10,14 @@ import re
 import sys
 import io
 from PIL import Image
+import warnings
 
 from torch import le
 from . import *
 from ..Helper.Printer import PrintColor, Printer
 from ..Helper.DictExtension import DictExtension
 
-
+warnings.resetwarnings()
 re_comp = re.compile(r"\D")
 
 """
@@ -126,9 +127,9 @@ class SubNormalizer:
                 if normtype != 'ignore':
                     if normtype == 'pass':
                         if isinstance(data,list):
-                            normlist.extend(data)
+                            normlist.extend(self.getValue(data,True,parents))
                         else:
-                            normlist.append(data)
+                            normlist.append(self.getValue(data,True,parents))
                     else:
                         params:dict = top['params']
                         if normtype == 'objsnormalize':
@@ -187,9 +188,9 @@ class SubNormalizer:
                         else:
                             b_size = len(normlist)
                             if normtype == 'value':
-                                normlist.append(float(params))
+                                normlist.append(self.getValue(params,True,parents,modifyparams=params))
                             elif normtype == 'mapping':
-                                normlist.append(float(params[data]))
+                                normlist.append(self.getValue(params[data],True,parents,modifyparams=params))
                             elif normtype == 'onehot':
                                 normlist.extend(SubNormalizer.onehot(params,str(data)))
                             elif normtype == 'max':
@@ -206,9 +207,13 @@ class SubNormalizer:
                                                 copiedData[2] /= self.getValue(value)
                                     else:
                                         copiedData = [d/params for d in copiedData]
-                                    normlist.extend(np.float32(copiedData))
+                                    normlist.extend(self.getValue(copiedData,True,parents,modifyparams=params))
                                 else:
-                                    normlist.append(np.float32(data)/self.getValue(params))
+                                    if isinstance(data,list):
+                                        add_data = data[0]
+                                    else:
+                                        add_data = data
+                                    normlist.append(self.getValue(add_data/self.getValue(params),True,parents,modifyparams=params))
                             # if len(normlist) - b_size != norm_size:
                     norm_size = DictExtension.Search(CLASS_SIZE_TREE,parents)
                     p_total = DictExtension.SumChildValue(norm_size)
@@ -219,15 +224,43 @@ class SubNormalizer:
 
             # print(self.atStr(parents,f" => {len(normlist)} (+{len(normlist)-b_size})",True))
         return True
-        
-    def getValue(self,v):
+    
+    def getValue(self,v,over_flow_check: bool=False,parents:list=None,minclip=None,maxclip=None,overflow=None,modifyparams: dict=None):
+        if v is None:
+            return None
         if isinstance(v,dict):
             if 'stdkey' in v:
-                return np.float32(self.stdparam[v['stdkey']])
+                return self.getValue(self.stdparam[v['stdkey']],over_flow_check,parents,minclip,maxclip,overflow,modifyparams)
             elif 'storedvalue' in v:
-                return SubNormalizer.getRootValue(self.storeddatas,v['storedvalue']['keys'])
+                return self.getValue(SubNormalizer.getRootValue(self.storeddatas,v['storedvalue']['keys']),over_flow_check,(parents+v['storedvalue']['keys']) if parents is not None else None,minclip,maxclip,overflow,modifyparams)
+        elif isinstance(v,list):
+            return type(v)([self.getValue(sv,over_flow_check,(parents+[vi]) if parents is not None else None,minclip,maxclip,overflow,modifyparams) for vi,sv in enumerate(v)])
         else:
-            return np.float32(v)
+            if modifyparams is not None:
+                return self.getValue(v,over_flow_check,parents,self.getValue(SubNormalizer.getKeyValue(modifyparams,'minclip')),self.getValue(SubNormalizer.getKeyValue(modifyparams,'maxclip')),self.getValue(SubNormalizer.getKeyValue(modifyparams,'overflow')))
+            if minclip is not None:
+                v = v if v >= minclip else minclip
+            if maxclip is not None:
+                v = v if v <= maxclip else maxclip
+            if over_flow_check:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('error')
+                    try:
+                        cv = np.float32(v)
+                    except RuntimeWarning:
+                        # print(SubNormalizer.atStr(parents,Printer.err(f"Overflow data value = {v}")))
+                        if overflow is not None:
+                            v = overflow
+                    if np.abs(v) > 1:
+                        # print(SubNormalizer.atStr(parents,Printer.warn(f"This data wasn't normalized yet! value = {v}")))
+                        if overflow is not None:
+                            v = overflow
+            return np.float64(v)
+    @classmethod
+    def getKeyValue(cls,check_dict:dict,key,default=None):
+        if isinstance(check_dict,dict) and (key in check_dict):
+            return check_dict[key]
+        return default
     @staticmethod
     def atStr(dir:list,message:str,hideParents=False):
         str_dir = [str(d) for d in dir]

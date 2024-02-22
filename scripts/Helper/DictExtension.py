@@ -140,3 +140,14 @@ class DictExtension:
                 dict.pop(d_key)
             elif set_func is not None:
                 dict[d_key] = set_func(dict[d_key])
+
+    @staticmethod
+    def toOneLineString(input:dict,key_value_sep: str=":",key_sep: str=", "):
+        return key_sep.join([f"{k}{key_value_sep}{v}" for k,v in input.items()])
+    
+    @staticmethod
+    def oneLineStringToDict(input:str,key_value_sep: str=":",key_sep: str=", ",default=None):
+        if ":" in input:
+            return { dd[0]:dd[1] for dd in [d.split(key_value_sep) for d in input.replace("\n").split(key_sep)]}
+        else:
+            return {input:default}

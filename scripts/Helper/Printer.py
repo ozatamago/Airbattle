@@ -1,3 +1,6 @@
+from functools import lru_cache
+
+
 class PrintColor:
 	BLACK          = '\033[30m'#(文字)黒
 	RED            = '\033[31m'#(文字)赤
@@ -23,6 +26,13 @@ class PrintColor:
 	BG_DEFAULT     = '\033[49m'#背景色をデフォルトに戻す
 	RESET          = '\033[0m'#全てリセット
 
+	COLORLIST	   = [WHITE,RED,YELLOW,GREEN,CYAN,MAGENTA]
+	COLORLISTLEN   = len(COLORLIST)
+
+	@staticmethod
+	def LOOPSELECT(i: int):
+		return PrintColor.COLORLIST[i%PrintColor.COLORLISTLEN]
+
 import torch
 import inspect
 class Printer:
@@ -45,13 +55,14 @@ class Printer:
 
         Args:
             message: 出力する文字列
-            color: 文字色指定 (PrintColor 列挙型)
+            color: 文字色指定 (PrintColor 列挙型もしくは int)
 
         Returns:
             文字色の装飾が施された文字列
         """
-		Printer.resetLiteralColor()
-		return f"{color}{message}{PrintColor.RESET}"
+		if isinstance(color,int):
+			return Printer.instant(message,PrintColor.LOOPSELECT(color))
+		return f"{PrintColor.RESET}{color}{message}{PrintColor.RESET}"
 	@staticmethod
 	def warn(message:str)->str:
 		"""
@@ -102,13 +113,14 @@ class Printer:
         """
 		return "None" if tensor == None else f"shape({tensor.shape if isinstance(tensor,torch.Tensor) else [t.shape for t in tensor]})"+ (f" = {tensor}" if output_values else "")
 	@staticmethod
-	def tensorPrint(tensor:torch.Tensor,output_values: bool=True):
+	def tensorPrint(tensor:torch.Tensor,output_values: bool=True,func=None):
 		"""
         PyTorch Tensorの形状情報とともに、現在のコードにおける変数名を出力する
 
         Args:
             tensor: PyTorch Tensor オブジェクト
-            output_values: Tensorの値自体を含めて出力するか指定  
+            output_values: Tensorの値自体を含めて出力するか指定
+			func: Tensorに行う処理
 
         Returns:
             変数名: Tensorの形状情報 (値出力指定時は値も含む) を含む文字列
@@ -155,5 +167,44 @@ class Printer:
 			str: 条件が成立する場合に出力する文字列
 		"""
 		return str if conditional else ""
+	@staticmethod
+	def DictPrint(input,ignore_keys={},use_colors: bool=True,depth: int=0):
+		end = "\n"+"  "*depth
+		st = end + "  "
+		output = []
+		if isinstance(input,(dict,list,set,tuple)):
+			joiner = Printer.instant(",",depth)+st
+			closer = "[]"
+			joinList = []
+			if isinstance(input,dict):
+				closer = "{}"
+				for k,v in input.items():
+					pre_ignore_keys = {}
+					if isinstance(ignore_keys,dict):
+						if k in ignore_keys:
+							pre_ignore_keys = ignore_keys[k].copy()
+					elif (isinstance(ignore_keys,list) and k in ignore_keys) or k == ignore_keys:
+						continue
+					joinList += [f"{Printer.instant(str(k)+':',depth)}{Printer.DictPrint(v,pre_ignore_keys,use_colors,depth+1)}"]
+			else:
+				for di,d in enumerate(input):
+					pre_ignore_keys = {}
+					if isinstance(ignore_keys,dict):
+						if di in ignore_keys:
+							pre_ignore_keys = ignore_keys[di].copy()
+					elif (isinstance(ignore_keys,list) and di in ignore_keys) or di == ignore_keys:
+						continue
+					joinList += [f"{Printer.DictPrint(d,pre_ignore_keys,use_colors,depth+1)}"]
+				if isinstance(input,(set,tuple)):
+					closer = "()"
+			output.append(closer[0])
+			output.append(joiner.join(joinList))
+			end += closer[1]
+		else:
+			output.append(f"{input}")
+		if use_colors:
+			end = Printer.instant(end,depth)
+			output[0] = Printer.instant(output[0],depth)
+		return f"{st.join(output)}{end}" if len(output) > 1 else f"{output[0]}"
   
 

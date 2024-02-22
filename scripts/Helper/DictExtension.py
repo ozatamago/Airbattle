@@ -148,6 +148,6 @@ class DictExtension:
     @staticmethod
     def oneLineStringToDict(input:str,key_value_sep: str=":",key_sep: str=", ",default=None):
         if ":" in input:
-            return { dd[0]:dd[1] for dd in [d.split(key_value_sep) for d in input.replace("\n").split(key_sep)]}
+            return { dd[0]:dd[1] for dd in [d.split(key_value_sep) for d in input.replace("\n","").split(key_sep)]}
         else:
             return {input:default}

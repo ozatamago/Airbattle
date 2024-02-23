@@ -74,6 +74,7 @@ class ModelManager:
         self.new_models = new_models
         # モデルのフォルダーのパスを作成する
         self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
+        # print(f"CutoutMode: {self.cutoutMode}")
 
     def save_models(self,mode:SaveMode=SaveMode.UPDATE,i=None,info: dict=None):
         """
@@ -135,7 +136,7 @@ class ModelManager:
             opt: オプション
             - 'LoadMode.CHOICE' のときは、選択するモデル番号 (listでも可): None => 'LoadMode.LATEST' と同じ
             - 'LoadMode.AGEST' のときは、最も学習回数が多いものからいくつ少ないモデルまで選択範囲に入れるか: None => 最も学習回数が多いもののみ
-            - 'LoadMode.KEY' のときは、[参照するキー[str],reverse[bool][省略可(False)]]のリスト形式で指定
+            - 'LoadMode.KEY' のときは、[参照するキー[str],何番目まで対象にするか[int],reverse[bool][省略可(False)]]のリスト形式で指定
 
             strict: 重みの互換性を厳密にチェックするかどうか
             force_load: new_models を無視して読み込むかどうか (学習ではない時にはこれを True にする)
@@ -167,8 +168,9 @@ class ModelManager:
                 i = self.getModelMaxNumber() if opt is None else opt
             load_i = i
         elif mode is self.LoadMode.KEY and isinstance(opt,list):
-            model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(opt[0]))]
-            model_nums = [v[-1] for v in sorted(model_datas,reverse=(opt[1] if len(opt) > 1 else False))]
+            params = [opt[0],opt[1] if len(opt) >= 2 else 1,opt[2] if len(opt) >= 3 else False]
+            model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(params[0]))]
+            model_nums = [v[-1] for v in sorted(model_datas,reverse=params[2])][:params[1]]
             i = random.choice(model_nums)
             load_i = i
         else:

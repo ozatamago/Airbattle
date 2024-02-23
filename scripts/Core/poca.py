@@ -11,7 +11,9 @@ from ..Helper.Printer import Printer
 from ..Helper.TensorExtension import TensorExtension
 from ..Helper.DictExtension import DictExtension
 from ..Helper.ListExtension import ListExtension
+import torch.multiprocessing as mp
 import warnings
+import random
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
@@ -169,7 +171,7 @@ class V(nn.Module):
             ts: 学習に用いるタイムステップのリスト
         """
         for t in ts:
-            if actives_list[t] > 0:
+            if actives_list[t] > 0 and random.random() >= 0.5:
                 self.optimizer.zero_grad()
                 yt_lam = self.yt_lambda(encoded_obs,reward,t)
                 pre_value = self.forward(encoded_obs[t])
@@ -484,8 +486,16 @@ class Actor(nn.Module):
         v_model.update(encoded_observations_list,actives_list,reward,ts)
         print("VModel Updated")
         print("Updating ActorModel, ObservationActionPairEncoder, QModel")
+        count = 0
+        max_count = len(ts)
+        seps = 10
+        check_points = [int(t*max_count/seps) for t in range(1,seps+1)]
         for t in ts:
-            if actives_list[t] > 0:
+            count += 1
+            if count in check_points:
+                check_points.pop(0)
+                print(f"{int(100*(1-len(check_points)/seps))}% Updated {count}/{max_count}")
+            if actives_list[t] > 0 and random.random() >= 0.5:
                 action_policy: torch.Tensor = self.forward(encoded_observations_list[t:t+1],actives_list[t:t+1])[0]['policy']
                 state_encoder.updateObsActsEncoder(observations_list[t],action_policy)
                 encoded_obs_acts = state_encoder.encode_obs_acts(observations_list[t],action_policy)
@@ -587,7 +597,7 @@ class MAPOCA(nn.Module):
             rew: 報酬のテンソル
             action_space: 行動空間
         """   
-        warnings.simplefilter('error')
+        # warnings.simplefilter('error')
         print("UpdateNetworks...")
         obs = obs.flatten(0,2)
         reward = rew.flatten(0,2)
@@ -599,7 +609,7 @@ class MAPOCA(nn.Module):
         print("ObservationEncoder Updated")
         self.actor.update(observations_list,actives_list,reward,action_space,self.v_model,self.q_model,self.state_encoder,rng.permutation(times))
         print("UpdateNetworks Done")
-        
+
     def init_hidden(self, hidden=None):
         """隠れ状態の初期化 (ダミー実装) """
         return None

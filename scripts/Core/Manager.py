@@ -1,7 +1,10 @@
+import sys
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
+import torch
 from . import *
 from gymnasium import spaces
 from .ModelManager import ModelManager
+from ..Helper.Printer import Printer
 
 def getBatchSize(obs,space):
     if(isinstance(space,spaces.Dict)):
@@ -15,7 +18,7 @@ def getBatchSize(obs,space):
 class Manager(ModelBase):
     def __init__(self,obs_space, ac_space, action_dist_class, model_config):
         super().__init__(obs_space, ac_space, action_dist_class, model_config)
-        self.modelmanager = ModelManager(getObservationSize(),getActions(),getNumAgents(),getHyperParameters('critic')['learningRate'])
+        self.modelmanager = ModelManager(getObservationSize(),getActions(),getNumAgents(),getHyperParameters('critic')['learningRate'],cutoutMode=ModelManager.CutoutMode.KEY,cutoutOption="RewardMean")
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
@@ -28,8 +31,8 @@ class Manager(ModelBase):
         return self.getModelManager().mapoca.parameters(recurse)
     def updateNetworks(self,obs,rew,action_space):
         self.getModelManager().mapoca.updateNetworks(obs,rew,action_space)
-        self.getModelManager().save_models(ModelManager.SaveMode.NEW)
+        self.getModelManager().save_models(ModelManager.SaveMode.NEW,info={"TotalReward":float(torch.sum(rew).item()),"RewardMean":float(torch.mean(torch.sum(rew,dim=1)).item())})
     def load_state_dict(self, state_dict, strict: bool = True):
         # load_state_dictを上書きして、かわりに自作のモデル読み込み処理を行う
         if not self.modelmanager.modelloaded:
-            self.modelmanager.load_models(ModelManager.LoadMode.LATEST,strict)
+            self.modelmanager.load_models(ModelManager.LoadMode.AGEST,1,strict)

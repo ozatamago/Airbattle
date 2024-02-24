@@ -18,7 +18,7 @@ def getBatchSize(obs,space):
 class Manager(ModelBase):
     def __init__(self,obs_space, ac_space, action_dist_class, model_config):
         super().__init__(obs_space, ac_space, action_dist_class, model_config)
-        self.modelmanager = ModelManager(getObservationSize(),getActions(),getNumAgents(),getHyperParameters('critic')['learningRate'],cutout=10,cutoutMode=ModelManager.CutoutMode.YOUNG,cutoutOption="RewardMean")
+        self.modelmanager = ModelManager(getObservationSize(),getActions(),getNumAgents(),getHyperParameters(),cutout=20,cutoutMode=ModelManager.CutoutMode.KEY,cutoutOption="RewardMean")
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
@@ -28,6 +28,7 @@ class Manager(ModelBase):
         return None
     def parameters(self, recurse=True):
         self.load_state_dict(None)
+        # ダミー
         return self.getModelManager().mapoca.parameters(recurse)
     def updateNetworks(self,obs,rew,action_space):
         self.getModelManager().mapoca.updateNetworks(obs,rew,action_space)

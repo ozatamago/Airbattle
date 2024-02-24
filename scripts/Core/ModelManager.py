@@ -40,7 +40,7 @@ class ModelManager:
         RANDOM = 'random' # ランダムなモデルを削除
         KEY = 'key' # parent.txt に保存されているデータに従って優先的に削除
     
-    def __init__(self, observation_size, action_dim,max_agents, lr, new_models: int=5,cutout: int=21, cutoutMode: CutoutMode=CutoutMode.YOUNG,cutoutOption=None,cutoutReverse: bool=False):
+    def __init__(self, observation_size, action_dim,max_agents, hyperParameters: dict, new_models: int=5,cutout: int=21, cutoutMode: CutoutMode=CutoutMode.YOUNG,cutoutOption=None,cutoutReverse: bool=False):
         """
         ModelManagerクラスの初期化
 
@@ -48,7 +48,7 @@ class ModelManager:
             observation_size: 観測値の次元数
             action_dim: 行動空間の次元数
             max_agents: Actorの最大数
-            lr: 学習率
+            hyperParameters: MAPOCAのハイパーパラメータ
             new_models: 既存モデルの数がこの数以下ならモデルを読み込まずに新規作成する
             cutout: 学習モデルの最大保存数
             cutoutMode: 学習モデルのカットアウト方法
@@ -64,7 +64,7 @@ class ModelManager:
         self.observation_size = observation_size
         self.action_dim = action_dim
         self.max_agents = max_agents
-        self.lr = lr
+        self.hyperParameters = hyperParameters
         self.modelloaded = False
         self.hist = []
         self.cutout = cutout
@@ -179,7 +179,7 @@ class ModelManager:
         self.folderpath = f"{self.model_folder}/{i}/"
         folderpath = f"{self.model_folder}/{load_i}/"
         # MAPOCAモデルの定義を作成する
-        self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.lr)
+        self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.hyperParameters)
         if mode is not self.LoadMode.NEW and os.path.exists(folderpath):
             # MAPOCAモデルの重みを読み込む
             print(f"{folderpath} model was loaded!")

@@ -61,13 +61,13 @@ class V(nn.Module):
     """
     反事実状態エンコーディングに基づいて状態価値(V値)を計算するモデル
     """
-    def __init__(self,input_dim: int, v_hid_dim: int = 64, rsa_heads: int = 4,lr: float=0.001,lam = 0.5,gam = 0.5,lam_eps = 1e-8,gam_eps = 1e-8):
+    def __init__(self,input_dim: int, hid_dim: int = 64, num_heads: int = 4,lr: float=0.001,lam = 0.5,gam = 0.5,lam_eps = 1e-8,gam_eps = 1e-8):
         """MA-POCA V 値計算モデルの初期化
 
         Args:
             input_dim: 入力次元のサイズ
-            v_hid_dim: V 値計算用隠れ層のサイズ（デフォルト: 64）
-            rsa_heads: RSA モジュール内のヘッド数（デフォルト: 4）
+            hid_dim: V 値計算用隠れ層のサイズ（デフォルト: 64）
+            num_heads: RSA モジュール内のヘッド数（デフォルト: 4）
             lr: 学習率（デフォルト: 0.001）
             lam: 割引報酬に関する減衰率lambda（デフォルト: 0.5）
             gam: 割引報酬に関する減衰率gamma（デフォルト: 0.5）
@@ -79,12 +79,12 @@ class V(nn.Module):
         self.lam_eps = lam_eps
         self.gam = gam
         self.gam_eps = gam_eps
-        mid_dim = int((input_dim+v_hid_dim)/(2*rsa_heads))*rsa_heads
+        mid_dim = int((input_dim+hid_dim)/(2*num_heads))*num_heads
         self.value_net = nn.Sequential(
-            RSABlock(input_dim,mid_dim,rsa_heads), # V値計算用RSA
-            nn.Linear(mid_dim,v_hid_dim),
+            RSABlock(input_dim,mid_dim,num_heads), # V値計算用RSA
+            nn.Linear(mid_dim,hid_dim),
             nn.LeakyReLU(),
-            nn.Linear(v_hid_dim,1) # V値計算
+            nn.Linear(hid_dim,1) # V値計算
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         self.loss_func = nn.MSELoss()
@@ -184,22 +184,22 @@ class Q(nn.Module):
     """
     反事実状態エンコーディングと行動に基づいて行動価値(Q値)を計算するモデル。
     """
-    def __init__(self,input_dim: int, q_hid_dim: int = 64, rsa_heads: int = 4, lr: float=0.001):
+    def __init__(self,input_dim: int, hid_dim: int = 64, num_heads: int = 4, lr: float=0.001):
         """MA-POCA Q ネットワークの初期化
 
         Args:
             input_dim: 入力エンコーディングのサイズ
-            q_hid_dim: Q 値計算用隠れ層のサイズ（デフォルト: 64）
-            rsa_heads: マルチヘッドアテンションのヘッド数（デフォルト: 4）
+            hid_dim: Q 値計算用隠れ層のサイズ（デフォルト: 64）
+            num_heads: マルチヘッドアテンションのヘッド数（デフォルト: 4）
             lr: 学習率（デフォルト: 0.001）
         """
         super(Q,self).__init__()
-        mid_dim = int((input_dim+q_hid_dim)/(2*rsa_heads))*rsa_heads
+        mid_dim = int((input_dim+hid_dim)/(2*num_heads))*num_heads
         self.value_net = nn.Sequential(
-            RSABlock(input_dim,mid_dim,rsa_heads), # Q値計算用RSA
-            nn.Linear(mid_dim,q_hid_dim),
+            RSABlock(input_dim,mid_dim,num_heads), # Q値計算用RSA
+            nn.Linear(mid_dim,hid_dim),
             nn.LeakyReLU(),
-            nn.Linear(q_hid_dim,1) # Q値計算
+            nn.Linear(hid_dim,1) # Q値計算
         )
         self.loss_func = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
@@ -301,20 +301,20 @@ class StateEncoder(nn.Module):
     """
     状態と行動を入力とし、反事実状態 (counterfactual state) を生成するエンコーダモデル
     """
-    def __init__(self,obs_dim: int,act_dim: int, out_dim: int):
+    def __init__(self,obs_dim: int,act_dim: int, hyperParams: dict):
         """状態エンコーダの初期化
 
         Args:
             obs_dim: 状態ベクトルの次元数
             act_dim: 行動ベクトルの次元数
-            out_dim: エンコード後の次元数
+            hyperParams: ハイパーパラメーター
         """
         super(StateEncoder,self).__init__()
         self.obs_dim = obs_dim
         self.act_dim = act_dim
-        self.out_dim = out_dim
-        self.obs_encode_layer = SparseAutoencoder(obs_dim,out_dim)
-        self.obs_act_encode_layer = SparseAutoencoder(obs_dim+act_dim,out_dim)
+        self.out_dim = hyperParams['out_dim']
+        self.obs_encode_layer = SparseAutoencoder(obs_dim,self.out_dim,**hyperParams['ObservationEncoder'])
+        self.obs_act_encode_layer = SparseAutoencoder(obs_dim+act_dim,self.out_dim,**hyperParams['ObservationActionPairEncoder'])
 
     def encode_obs(self,observations):
         """状態ベクトルのエンコード
@@ -518,28 +518,47 @@ class MAPOCA(nn.Module):
     Multi-Agent POlicy with Counterfactual Action (MAPOCA) アルゴリズムに基づく強化学習モデル。
     複数のエージェントが協調する強化学習環境を想定し、状態エンコーダ、Actor、V値モデル、Q値モデルから構成される。
     """
-    def __init__(self, obs_dim: int, act_dim: int, max_agents: int, lr: float, hid_dim: int = 128, v_hid_dim: int = 64, v_rsa_heads: int = 4,q_hid_dim: int = 64, q_rsa_heads: int = 4):
+    HYPER_PARAMETERS_DEFAULT = {
+        'StateEncoder':{
+            'out_dim': 128,
+            'ObservationEncoder':{
+                'rho':0.05,'beta':3 ,'lr':0.01
+            },
+            'ObservationActionPairEncoder':{
+                'rho':0.05,'beta':3 ,'lr':0.01
+            }
+        },
+        'Actor':{
+            'num_heads': 3, 'lr': 0.01
+        },
+        'VModel':{
+            'hid_dim': 64, 'num_heads': 3, 'lr': 0.01,
+            'lam': 0.5, 'gam': 0.5, 'lam_eps': 1e-7, 'gam_eps': 1e-7
+        },
+        'QModel':{
+            'hid_dim': 64,'num_heads': 3, 'lr': 0.01
+        }
+    }
+    def __init__(self, obs_dim: int, act_dim: int, max_agents: int,hyperParams: dict):
         """MAPOCAモデルの初期化
 
         Args:
             obs_dim: 各エージェントの状態観測ベクトルの次元数 
             act_dim: 各エージェントの行動空間の次元数
             max_agents: 環境内の最大エージェント数
-            lr: 学習率
-            hid_dim: エンコーディング／内部状態表現の次元数 (デフォルト: 128)
-            v_hid_dim: V値モデルの隠れ層次元数 (デフォルト: 64)
-            v_rsa_heads: V値モデルのRSAモジュール内ヘッド数 (デフォルト: 4)
-            q_hid_dim: Q値モデルの隠れ層次元数 (デフォルト: 64)
-            q_rsa_heads: Q値モデルのRSAモジュール内ヘッド数 (デフォルト: 4)
+            hyperParams: ハイパーパラメーター
         """
         super(MAPOCA, self).__init__()
+        hyper_params = self.HYPER_PARAMETERS_DEFAULT.copy()
+        for k,v in hyperParams.items():
+            hyper_params[k] = v
         self.act_dim = act_dim
         self.obs_dim = obs_dim
-        self.state_encoder = StateEncoder(obs_dim+1,act_dim,hid_dim) # g(o), f(o,a), (g,f)
-        self.actor = Actor(hid_dim, act_dim)
-        self.v_model = V(hid_dim,v_hid_dim,v_rsa_heads) # V値計算
-        self.q_model = Q(hid_dim,q_hid_dim,q_rsa_heads) # Q値計算
-        self.lr = lr
+        self.encoded_dim = hyper_params['StateEncoder']['out_dim']
+        self.state_encoder = StateEncoder(obs_dim+1,act_dim,hyper_params['StateEncoder']) # g(o), f(o,a), (g,f)
+        self.actor = Actor(self.encoded_dim, act_dim,**hyper_params['Actor'])
+        self.v_model = V(self.encoded_dim,**hyper_params['VModel']) # V値計算
+        self.q_model = Q(self.encoded_dim,**hyper_params['QModel']) # Q値計算
         self.max_agents = max_agents
     
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None, get_only_one_action_output: bool = True) -> dict:

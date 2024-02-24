@@ -72,6 +72,7 @@ class ModelManager:
         self.cutoutOption = cutoutOption
         self.cutoutReverse = cutoutReverse
         self.new_models = new_models
+        self.mapoca = None
         # モデルのフォルダーのパスを作成する
         self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
         # print(f"CutoutMode: {self.cutoutMode}")
@@ -88,37 +89,38 @@ class ModelManager:
 
             i: モデル番号 (SaveMode.CHOICE または SaveMode.NEW の場合のみ必要)
         """
-        model_nums = self.getModelNumbers()
-        overs = len(model_nums)-self.cutout
-        if overs > 0:
-            if self.cutoutMode is self.CutoutMode.YOUNG:
-                model_ages = self.getModelAges()
-                model_nums = [v for _,v in sorted(zip(model_ages,model_nums),reverse=self.cutoutReverse)]
-            elif self.cutoutMode is self.CutoutMode.RANDOM:
-                model_nums = random.sample(model_nums,overs)
-            elif self.cutoutMode is self.CutoutMode.KEY and self.cutoutOption is not None:
-                model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(self.cutoutOption))]
-                model_nums = [v[-1] for v in sorted(model_datas,reverse=self.cutoutReverse)]
-            for n in model_nums[:(overs+1)]:
-                folderpath = f"{self.model_folder}/{n}/"
-                if os.path.exists(folderpath):
-                    shutil.rmtree(folderpath)
-        if mode is self.SaveMode.UPDATE:
-            folderpath = self.folderpath
-        else:
-            i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
-            folderpath = f"{self.model_folder}/{i}/"
-        # モデルのフォルダーが存在しない場合は作成する
-        if not os.path.exists(folderpath):
-            os.makedirs(folderpath)
-        # モデルの重みを保存する
-        self.mapoca.save_state_dict(folderpath)
-        info = dict() if (info is None or not isinstance(info,dict)) else info
-        info['ModelNumber'] = i
-        with open(f'{folderpath}parents.txt',"w") as f:
-            f.write('\n'.join(self.hist + [DictExtension.toOneLineString(info)]))
-        self.modelloaded = False
-        print(f"Model saved to {folderpath}")
+        if self.mapoca is not None:
+            model_nums = self.getModelNumbers()
+            overs = len(model_nums)-self.cutout
+            if overs > 0:
+                if self.cutoutMode is self.CutoutMode.YOUNG:
+                    model_ages = self.getModelAges()
+                    model_nums = [v for _,v in sorted(zip(model_ages,model_nums),reverse=self.cutoutReverse)]
+                elif self.cutoutMode is self.CutoutMode.RANDOM:
+                    model_nums = random.sample(model_nums,overs)
+                elif self.cutoutMode is self.CutoutMode.KEY and self.cutoutOption is not None:
+                    model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(self.cutoutOption))]
+                    model_nums = [v[-1] for v in sorted(model_datas,reverse=self.cutoutReverse)]
+                for n in model_nums[:(overs+1)]:
+                    folderpath = f"{self.model_folder}/{n}/"
+                    if os.path.exists(folderpath):
+                        shutil.rmtree(folderpath)
+            if mode is self.SaveMode.UPDATE:
+                folderpath = self.folderpath
+            else:
+                i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
+                folderpath = f"{self.model_folder}/{i}/"
+            # モデルのフォルダーが存在しない場合は作成する
+            if not os.path.exists(folderpath):
+                os.makedirs(folderpath)
+            # モデルの重みを保存する
+            self.mapoca.save_state_dict(folderpath)
+            info = dict() if (info is None or not isinstance(info,dict)) else info
+            info['ModelNumber'] = i
+            with open(f'{folderpath}parents.txt',"w") as f:
+                f.write('\n'.join(self.hist + [DictExtension.toOneLineString(info)]))
+            self.modelloaded = False
+            print(f"Model saved to {folderpath}")
 
     def load_models(self,mode:LoadMode=LoadMode.LATEST,opt=None,strict: bool = True,force_load: bool = False):
         """
@@ -180,6 +182,7 @@ class ModelManager:
         folderpath = f"{self.model_folder}/{load_i}/"
         # MAPOCAモデルの定義を作成する
         self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.hyperParameters)
+        print("MAPOCA created!")
         if mode is not self.LoadMode.NEW and os.path.exists(folderpath):
             # MAPOCAモデルの重みを読み込む
             print(f"{folderpath} model was loaded!")

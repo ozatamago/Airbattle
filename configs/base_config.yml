@@ -31,8 +31,8 @@ model: # model作成に必要な情報
       lr: 0.01
       lam: 0.5
       gam: 0.5
-      lam_eps: 1e-7
-      gam_eps: 1e-7
+      lam_eps: 0.000001
+      gam_eps: 0.000001
     QModel:
       hid_dim: 64
       num_heads: 3

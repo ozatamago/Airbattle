@@ -22,6 +22,7 @@ class Manager(ModelBase):
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
+        self.load_state_dict(None)
         return self.getModelManager().mapoca(obs,hidden)
     def init_hidden(self,hidden=None):
         # RNNを使用しない場合、ダミーの隠れ状態を返す
@@ -34,5 +35,6 @@ class Manager(ModelBase):
         self.getModelManager().mapoca.updateNetworks(obs,rew,action_space)
         self.getModelManager().save_models(ModelManager.SaveMode.NEW,info={"TotalReward":float(torch.sum(rew).item()),"RewardMean":float(torch.mean(torch.sum(rew,dim=1)).item())})
     def load_state_dict(self, state_dict, strict: bool = True):
-        # load_state_dictを上書きして、かわりに自作のモデル読み込み処理を行う
-        self.modelmanager.load_models(ModelManager.LoadMode.AGEST,1,strict)
+        if self.getModelManager().mapoca is None:
+            # load_state_dictを上書きして、かわりに自作のモデル読み込み処理を行う
+            self.getModelManager().load_models(ModelManager.LoadMode.AGEST,1,strict)

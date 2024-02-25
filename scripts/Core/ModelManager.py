@@ -40,7 +40,7 @@ class ModelManager:
         RANDOM = 'random' # ランダムなモデルを削除
         KEY = 'key' # parent.txt に保存されているデータに従って優先的に削除
     
-    def __init__(self, observation_size, action_dim,max_agents, hyperParameters: dict, new_models: int=5,cutout: int=21, cutoutMode: CutoutMode=CutoutMode.YOUNG,cutoutOption=None,cutoutReverse: bool=False):
+    def __init__(self, observation_size, action_dim,max_agents, hyperParameters: dict, new_models: int=5,cutout: int=21, cutoutMode: CutoutMode=CutoutMode.YOUNG,cutoutOption=None,cutoutReverse: bool=False,loadfromElite=False):
         """
         ModelManagerクラスの初期化
 
@@ -60,6 +60,7 @@ class ModelManager:
             cutoutOption: カットアウトのオプション
             - 'CutoutMode.KEY' のときは、参照するキー[str]
             cutoutReverse: cutoutModeの優先順位を逆転するかどうか (Trueで逆転)
+            loadfromElite: elitesフォルダーから読み込む
         """
         self.observation_size = observation_size
         self.action_dim = action_dim
@@ -73,8 +74,9 @@ class ModelManager:
         self.cutoutReverse = cutoutReverse
         self.new_models = new_models
         self.mapoca = None
+        folder_name = "elites" if loadfromElite else "models"
         # モデルのフォルダーのパスを作成する
-        self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
+        self.model_folder = os.path.join(os.path.dirname(__file__),f"../{folder_name}/{observation_size}/{action_dim}")
         # print(f"CutoutMode: {self.cutoutMode}")
 
     def save_models(self,mode:SaveMode=SaveMode.UPDATE,i=None,info: dict=None):

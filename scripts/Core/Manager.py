@@ -18,7 +18,7 @@ def getBatchSize(obs,space):
 class Manager(ModelBase):
     def __init__(self,obs_space, ac_space, action_dist_class, model_config):
         super().__init__(obs_space, ac_space, action_dist_class, model_config)
-        self.modelmanager = ModelManager(getObservationSize(),getActions(),getNumAgents(),getHyperParameters(),cutout=20,cutoutMode=ModelManager.CutoutMode.KEY,cutoutOption="RewardMean")
+        self.modelmanager = ModelManager(getObservationSize(),getActions(),getNumAgents(),getHyperParameters(),cutout=10,cutoutMode=ModelManager.CutoutMode.YOUNG,cutoutOption="RewardMean",loadfromElite=True)
     def getModelManager(self):
         return self.modelmanager
     def forward(self, obs, hidden=None):
@@ -37,4 +37,4 @@ class Manager(ModelBase):
     def load_state_dict(self, state_dict, strict: bool = True):
         if self.getModelManager().mapoca is None:
             # load_state_dictを上書きして、かわりに自作のモデル読み込み処理を行う
-            self.getModelManager().load_models(ModelManager.LoadMode.AGEST,1,strict)
+            self.getModelManager().load_models(ModelManager.LoadMode.CHOICE,1,strict,force_load=True)

@@ -17,6 +17,11 @@ import random
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+
 def getBatchSize(obs,space):
     if(isinstance(space,spaces.Dict)):
         k=next(iter(space))
@@ -170,8 +175,9 @@ class V(nn.Module):
             reward: 報酬シーケンス
             ts: 学習に用いるタイムステップのリスト
         """
-        for t in ts:
-            if actives_list[t] > 0 and random.random() >= 0.5:
+        active_ts = [t for t in ts if actives_list[t] > 0]
+        for t in active_ts:
+            if random.random() >= 0.5:
                 self.optimizer.zero_grad()
                 yt_lam = self.yt_lambda(encoded_obs,reward,t)
                 pre_value = self.forward(encoded_obs[t])
@@ -314,7 +320,9 @@ class StateEncoder(nn.Module):
         self.act_dim = act_dim
         self.out_dim = hyperParams['out_dim']
         self.obs_encode_layer = SparseAutoencoder(obs_dim,self.out_dim,**hyperParams['ObservationEncoder'])
+        self.obs_encode_layer.to(device)
         self.obs_act_encode_layer = SparseAutoencoder(obs_dim+act_dim,self.out_dim,**hyperParams['ObservationActionPairEncoder'])
+        self.obs_act_encode_layer.to(device)
 
     def encode_obs(self,observations):
         """状態ベクトルのエンコード
@@ -438,6 +446,7 @@ class Actor(nn.Module):
             nn.Linear(mid_dim,act_dim),
             nn.ReLU()
         )
+        self.policy_net.to(device)
         self.optimizer = torch.optim.SGD(self.parameters(), lr=lr)
 
     def forward(self, encoded_observations_list: list, actives_list: list, hidden: torch.Tensor = None) -> list:
@@ -460,6 +469,7 @@ class Actor(nn.Module):
             if active == 0:
                 logits = torch.zeros((1,0,self.act_dim), dtype=torch.float32)
             else:
+                obs.to(device)
                 logits = self.policy_net(obs) + 1e-6
             ret = {'policy':logits,'logits': logits, 'hidden': hidden}
             DictExtension.reduceNone(ret)
@@ -487,15 +497,16 @@ class Actor(nn.Module):
         print("VModel Updated")
         print("Updating ActorModel, ObservationActionPairEncoder, QModel")
         count = 0
-        max_count = len(ts)
+        active_ts = [t for t in ts if actives_list[t] > 0]
+        max_count = len(active_ts)
         seps = 10
         check_points = [int(t*max_count/seps) for t in range(1,seps+1)]
-        for t in ts:
+        for t in active_ts:
             count += 1
             if count in check_points:
                 check_points.pop(0)
                 print(f"{int(100*(1-len(check_points)/seps))}% Updated {count}/{max_count}")
-            if actives_list[t] > 0 and random.random() >= 0.5:
+            if random.random() >= 0.5:
                 action_policy: torch.Tensor = self.forward(encoded_observations_list[t:t+1],actives_list[t:t+1])[0]['policy']
                 state_encoder.updateObsActsEncoder(observations_list[t],action_policy)
                 encoded_obs_acts = state_encoder.encode_obs_acts(observations_list[t],action_policy)
@@ -557,8 +568,11 @@ class MAPOCA(nn.Module):
         self.encoded_dim = hyper_params['StateEncoder']['out_dim']
         self.state_encoder = StateEncoder(obs_dim+1,act_dim,hyper_params['StateEncoder']) # g(o), f(o,a), (g,f)
         self.actor = Actor(self.encoded_dim, act_dim,**hyper_params['Actor'])
+        self.actor.to(device)
         self.v_model = V(self.encoded_dim,**hyper_params['VModel']) # V値計算
+        self.v_model.to(device)
         self.q_model = Q(self.encoded_dim,**hyper_params['QModel']) # Q値計算
+        self.q_model.to(device)
         self.max_agents = max_agents
     
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None, get_only_one_action_output: bool = True) -> dict:
@@ -576,6 +590,7 @@ class MAPOCA(nn.Module):
                 * logits: 行動のロジット (policy を生成する前のネットワーク出力)
                 * hidden: 隠れ層状態 
         """
+        obs.to(device)
         observations_list, actives_list = self.split_to_obs_acts_list(obs)
         encoded_obs = self.state_encoder.encode_obs(observations_list)
         actor_output = self.actor.forward(encoded_obs, actives_list, hidden)

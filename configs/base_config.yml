@@ -13,7 +13,7 @@ model: # model作成に必要な情報
   actions: 34
   hyperParameters:
     StateEncoder:
-      out_dim: 128
+      out_dim: 256
       ObservationEncoder:
         rho: 0.05
         beta: 3
@@ -26,7 +26,7 @@ model: # model作成に必要な情報
       num_heads: 3
       lr: 0.01
     VModel:
-      hid_dim: 64
+      hid_dim: 128
       num_heads: 3
       lr: 0.01
       lam: 0.5
@@ -34,6 +34,6 @@ model: # model作成に必要な情報
       lam_eps: 0.000001
       gam_eps: 0.000001
     QModel:
-      hid_dim: 64
+      hid_dim: 128
       num_heads: 3
       lr: 0.01

@@ -58,9 +58,9 @@ def getNormConfigPath():
 @lru_cache(maxsize=1)
 def getStdParamsPath():
     return getConfigValue('stdParamsName')
-@lru_cache(maxsize=2)
-def getHyperParameters(model:str):
-    return getModelValue('hyperParameters',model)
+@lru_cache(maxsize=1)
+def getHyperParameters():
+    return getModelValue('hyperParameters')
 
 if NORM_CONFIG is None:
     with open(os.path.join(os.path.dirname(__file__),CONFIGPATH,getNormConfigPath()), 'r') as yml:

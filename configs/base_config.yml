@@ -12,15 +12,28 @@ model: # model作成に必要な情報
   stateEncoderModelName: stateEncoder
   actions: 34
   hyperParameters:
-    critic: # Criticのモデルに用いるハイパーパラメータ
-      hiddenLayers: [64, 64] # Criticのニューラルネットワークの隠れ層のユニット数
-      activation: 'relu' # Criticのニューラルネットワークの活性化関数
-      learningRate: 0.001 # Criticの学習率
-      gamma: 0.99 # 割引率
-      lambda: 0.95 # GAEのパラメータ
-    actor: # Actorのモデルに用いるハイパーパラメータ
-      hiddenLayers: [64, 64] # Actorのニューラルネットワークの隠れ層のユニット数
-      activation: 'tanh' # Actorのニューラルネットワークの活性化関数
-      learningRate: 0.001 # Actorの学習率
-      entropyCoefficient: 0.01 # エントロピー項の係数
-      clipRatio: 0.2 # PPOのクリッピング比率
+    StateEncoder:
+      out_dim: 256
+      ObservationEncoder:
+        rho: 0.05
+        beta: 3
+        lr: 0.01
+      ObservationActionPairEncoder:
+        rho: 0.05
+        beta: 3
+        lr: 0.01
+    Actor:
+      num_heads: 3
+      lr: 0.01
+    VModel:
+      hid_dim: 128
+      num_heads: 3
+      lr: 0.01
+      lam: 0.5
+      gam: 0.5
+      lam_eps: 0.000001
+      gam_eps: 0.000001
+    QModel:
+      hid_dim: 128
+      num_heads: 3
+      lr: 0.01

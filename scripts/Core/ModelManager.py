@@ -40,7 +40,7 @@ class ModelManager:
         RANDOM = 'random' # ランダムなモデルを削除
         KEY = 'key' # parent.txt に保存されているデータに従って優先的に削除
     
-    def __init__(self, observation_size, action_dim,max_agents, lr, new_models: int=5,cutout: int=21, cutoutMode: CutoutMode=CutoutMode.YOUNG,cutoutOption=None,cutoutReverse: bool=False):
+    def __init__(self, observation_size, action_dim,max_agents, hyperParameters: dict, new_models: int=5,cutout: int=21, cutoutMode: CutoutMode=CutoutMode.YOUNG,cutoutOption=None,cutoutReverse: bool=False,loadfromElite=False):
         """
         ModelManagerクラスの初期化
 
@@ -48,7 +48,7 @@ class ModelManager:
             observation_size: 観測値の次元数
             action_dim: 行動空間の次元数
             max_agents: Actorの最大数
-            lr: 学習率
+            hyperParameters: MAPOCAのハイパーパラメータ
             new_models: 既存モデルの数がこの数以下ならモデルを読み込まずに新規作成する
             cutout: 学習モデルの最大保存数
             cutoutMode: 学習モデルのカットアウト方法
@@ -60,11 +60,12 @@ class ModelManager:
             cutoutOption: カットアウトのオプション
             - 'CutoutMode.KEY' のときは、参照するキー[str]
             cutoutReverse: cutoutModeの優先順位を逆転するかどうか (Trueで逆転)
+            loadfromElite: elitesフォルダーから読み込む
         """
         self.observation_size = observation_size
         self.action_dim = action_dim
         self.max_agents = max_agents
-        self.lr = lr
+        self.hyperParameters = hyperParameters
         self.modelloaded = False
         self.hist = []
         self.cutout = cutout
@@ -72,8 +73,11 @@ class ModelManager:
         self.cutoutOption = cutoutOption
         self.cutoutReverse = cutoutReverse
         self.new_models = new_models
+        self.mapoca = None
+        folder_name = "elites" if loadfromElite else "models"
         # モデルのフォルダーのパスを作成する
-        self.model_folder = os.path.join(os.path.dirname(__file__),f"../models/{observation_size}/{action_dim}")
+        self.model_folder = os.path.join(os.path.dirname(__file__),f"../{folder_name}/{observation_size}/{action_dim}")
+        # print(f"CutoutMode: {self.cutoutMode}")
 
     def save_models(self,mode:SaveMode=SaveMode.UPDATE,i=None,info: dict=None):
         """
@@ -87,37 +91,38 @@ class ModelManager:
 
             i: モデル番号 (SaveMode.CHOICE または SaveMode.NEW の場合のみ必要)
         """
-        model_nums = self.getModelNumbers()
-        overs = len(model_nums)-self.cutout
-        if overs > 0:
-            if self.cutoutMode is self.CutoutMode.YOUNG:
-                model_ages = self.getModelAges()
-                model_nums = [v for _,v in sorted(zip(model_ages,model_nums),reverse=self.cutoutReverse)]
-            elif self.cutoutMode is self.CutoutMode.RANDOM:
-                model_nums = random.sample(model_nums,overs)
-            elif self.cutoutMode is self.CutoutMode.KEY and self.cutoutOption is not None:
-                model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(self.cutoutOption))]
-                model_nums = [v[-1] for v in sorted(model_datas,reverse=self.cutoutReverse)]
-            for n in model_nums[:(overs+1)]:
-                folderpath = f"{self.model_folder}/{n}/"
-                if os.path.exists(folderpath):
-                    shutil.rmtree(folderpath)
-        if mode is self.SaveMode.UPDATE:
-            folderpath = self.folderpath
-        else:
-            i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
-            folderpath = f"{self.model_folder}/{i}/"
-        # モデルのフォルダーが存在しない場合は作成する
-        if not os.path.exists(folderpath):
-            os.makedirs(folderpath)
-        # モデルの重みを保存する
-        self.mapoca.save_state_dict(folderpath)
-        info = dict() if (info is None or not isinstance(info,dict)) else info
-        info['ModelNumber'] = i
-        with open(f'{folderpath}parents.txt',"w") as f:
-            f.write('\n'.join(self.hist + [DictExtension.toOneLineString(info)]))
-        self.modelloaded = False
-        print(f"Model saved to {folderpath}")
+        if self.mapoca is not None:
+            model_nums = self.getModelNumbers()
+            overs = len(model_nums)-self.cutout
+            if overs > 0:
+                if self.cutoutMode is self.CutoutMode.YOUNG:
+                    model_ages = self.getModelAges()
+                    model_nums = [v for _,v in sorted(zip(model_ages,model_nums),reverse=self.cutoutReverse)]
+                elif self.cutoutMode is self.CutoutMode.RANDOM:
+                    model_nums = random.sample(model_nums,overs)
+                elif self.cutoutMode is self.CutoutMode.KEY and self.cutoutOption is not None:
+                    model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(self.cutoutOption))]
+                    model_nums = [v[-1] for v in sorted(model_datas,reverse=self.cutoutReverse)]
+                for n in model_nums[:(overs+1)]:
+                    folderpath = f"{self.model_folder}/{n}/"
+                    if os.path.exists(folderpath):
+                        shutil.rmtree(folderpath)
+            if mode is self.SaveMode.UPDATE:
+                folderpath = self.folderpath
+            else:
+                i = self.getModelMaxNumber() + (1 if mode is self.SaveMode.NEW else 0) if i is None else i
+                folderpath = f"{self.model_folder}/{i}/"
+            # モデルのフォルダーが存在しない場合は作成する
+            if not os.path.exists(folderpath):
+                os.makedirs(folderpath)
+            # モデルの重みを保存する
+            self.mapoca.save_state_dict(folderpath)
+            info = dict() if (info is None or not isinstance(info,dict)) else info
+            info['ModelNumber'] = i
+            with open(f'{folderpath}parents.txt',"w") as f:
+                f.write('\n'.join(self.hist + [DictExtension.toOneLineString(info)]))
+            self.modelloaded = False
+            print(f"Model saved to {folderpath}")
 
     def load_models(self,mode:LoadMode=LoadMode.LATEST,opt=None,strict: bool = True,force_load: bool = False):
         """
@@ -135,7 +140,7 @@ class ModelManager:
             opt: オプション
             - 'LoadMode.CHOICE' のときは、選択するモデル番号 (listでも可): None => 'LoadMode.LATEST' と同じ
             - 'LoadMode.AGEST' のときは、最も学習回数が多いものからいくつ少ないモデルまで選択範囲に入れるか: None => 最も学習回数が多いもののみ
-            - 'LoadMode.KEY' のときは、[参照するキー[str],reverse[bool][省略可(False)]]のリスト形式で指定
+            - 'LoadMode.KEY' のときは、[参照するキー[str],何番目まで対象にするか[int],reverse[bool][省略可(False)]]のリスト形式で指定
 
             strict: 重みの互換性を厳密にチェックするかどうか
             force_load: new_models を無視して読み込むかどうか (学習ではない時にはこれを True にする)
@@ -167,8 +172,9 @@ class ModelManager:
                 i = self.getModelMaxNumber() if opt is None else opt
             load_i = i
         elif mode is self.LoadMode.KEY and isinstance(opt,list):
-            model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(opt[0]))]
-            model_nums = [v[-1] for v in sorted(model_datas,reverse=(opt[1] if len(opt) > 1 else False))]
+            params = [opt[0],opt[1] if len(opt) >= 2 else 1,opt[2] if len(opt) >= 3 else False]
+            model_datas = [md+[model_nums[mi]] for mi,md in enumerate(self.getModelDatas(params[0]))]
+            model_nums = [v[-1] for v in sorted(model_datas,reverse=params[2])][:params[1]]
             i = random.choice(model_nums)
             load_i = i
         else:
@@ -177,7 +183,8 @@ class ModelManager:
         self.folderpath = f"{self.model_folder}/{i}/"
         folderpath = f"{self.model_folder}/{load_i}/"
         # MAPOCAモデルの定義を作成する
-        self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.lr)
+        self.mapoca = MAPOCA(self.observation_size,self.action_dim,self.max_agents,self.hyperParameters)
+        print("MAPOCA created!")
         if mode is not self.LoadMode.NEW and os.path.exists(folderpath):
             # MAPOCAモデルの重みを読み込む
             print(f"{folderpath} model was loaded!")

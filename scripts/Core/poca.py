@@ -17,6 +17,11 @@ import random
 from gymnasium import spaces
 from ASRCAISim1.addons.HandyRLUtility.model import ModelBase
 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+
 def getBatchSize(obs,space):
     if(isinstance(space,spaces.Dict)):
         k=next(iter(space))
@@ -61,13 +66,13 @@ class V(nn.Module):
     """
     反事実状態エンコーディングに基づいて状態価値(V値)を計算するモデル
     """
-    def __init__(self,input_dim: int, v_hid_dim: int = 64, rsa_heads: int = 4,lr: float=0.001,lam = 0.5,gam = 0.5,lam_eps = 1e-8,gam_eps = 1e-8):
+    def __init__(self,input_dim: int, hid_dim: int = 64, num_heads: int = 4,lr: float=0.001,lam = 0.5,gam = 0.5,lam_eps = 1e-8,gam_eps = 1e-8):
         """MA-POCA V 値計算モデルの初期化
 
         Args:
             input_dim: 入力次元のサイズ
-            v_hid_dim: V 値計算用隠れ層のサイズ（デフォルト: 64）
-            rsa_heads: RSA モジュール内のヘッド数（デフォルト: 4）
+            hid_dim: V 値計算用隠れ層のサイズ（デフォルト: 64）
+            num_heads: RSA モジュール内のヘッド数（デフォルト: 4）
             lr: 学習率（デフォルト: 0.001）
             lam: 割引報酬に関する減衰率lambda（デフォルト: 0.5）
             gam: 割引報酬に関する減衰率gamma（デフォルト: 0.5）
@@ -79,12 +84,12 @@ class V(nn.Module):
         self.lam_eps = lam_eps
         self.gam = gam
         self.gam_eps = gam_eps
-        mid_dim = int((input_dim+v_hid_dim)/(2*rsa_heads))*rsa_heads
+        mid_dim = int((input_dim+hid_dim)/(2*num_heads))*num_heads
         self.value_net = nn.Sequential(
-            RSABlock(input_dim,mid_dim,rsa_heads), # V値計算用RSA
-            nn.Linear(mid_dim,v_hid_dim),
+            RSABlock(input_dim,mid_dim,num_heads), # V値計算用RSA
+            nn.Linear(mid_dim,hid_dim),
             nn.LeakyReLU(),
-            nn.Linear(v_hid_dim,1) # V値計算
+            nn.Linear(hid_dim,1) # V値計算
         )
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         self.loss_func = nn.MSELoss()
@@ -170,8 +175,9 @@ class V(nn.Module):
             reward: 報酬シーケンス
             ts: 学習に用いるタイムステップのリスト
         """
-        for t in ts:
-            if actives_list[t] > 0 and random.random() >= 0.5:
+        active_ts = [t for t in ts if actives_list[t] > 0]
+        for t in active_ts:
+            if random.random() >= 0.5:
                 self.optimizer.zero_grad()
                 yt_lam = self.yt_lambda(encoded_obs,reward,t)
                 pre_value = self.forward(encoded_obs[t])
@@ -184,22 +190,22 @@ class Q(nn.Module):
     """
     反事実状態エンコーディングと行動に基づいて行動価値(Q値)を計算するモデル。
     """
-    def __init__(self,input_dim: int, q_hid_dim: int = 64, rsa_heads: int = 4, lr: float=0.001):
+    def __init__(self,input_dim: int, hid_dim: int = 64, num_heads: int = 4, lr: float=0.001):
         """MA-POCA Q ネットワークの初期化
 
         Args:
             input_dim: 入力エンコーディングのサイズ
-            q_hid_dim: Q 値計算用隠れ層のサイズ（デフォルト: 64）
-            rsa_heads: マルチヘッドアテンションのヘッド数（デフォルト: 4）
+            hid_dim: Q 値計算用隠れ層のサイズ（デフォルト: 64）
+            num_heads: マルチヘッドアテンションのヘッド数（デフォルト: 4）
             lr: 学習率（デフォルト: 0.001）
         """
         super(Q,self).__init__()
-        mid_dim = int((input_dim+q_hid_dim)/(2*rsa_heads))*rsa_heads
+        mid_dim = int((input_dim+hid_dim)/(2*num_heads))*num_heads
         self.value_net = nn.Sequential(
-            RSABlock(input_dim,mid_dim,rsa_heads), # Q値計算用RSA
-            nn.Linear(mid_dim,q_hid_dim),
+            RSABlock(input_dim,mid_dim,num_heads), # Q値計算用RSA
+            nn.Linear(mid_dim,hid_dim),
             nn.LeakyReLU(),
-            nn.Linear(q_hid_dim,1) # Q値計算
+            nn.Linear(hid_dim,1) # Q値計算
         )
         self.loss_func = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=lr)
@@ -301,20 +307,22 @@ class StateEncoder(nn.Module):
     """
     状態と行動を入力とし、反事実状態 (counterfactual state) を生成するエンコーダモデル
     """
-    def __init__(self,obs_dim: int,act_dim: int, out_dim: int):
+    def __init__(self,obs_dim: int,act_dim: int, hyperParams: dict):
         """状態エンコーダの初期化
 
         Args:
             obs_dim: 状態ベクトルの次元数
             act_dim: 行動ベクトルの次元数
-            out_dim: エンコード後の次元数
+            hyperParams: ハイパーパラメーター
         """
         super(StateEncoder,self).__init__()
         self.obs_dim = obs_dim
         self.act_dim = act_dim
-        self.out_dim = out_dim
-        self.obs_encode_layer = SparseAutoencoder(obs_dim,out_dim)
-        self.obs_act_encode_layer = SparseAutoencoder(obs_dim+act_dim,out_dim)
+        self.out_dim = hyperParams['out_dim']
+        self.obs_encode_layer = SparseAutoencoder(obs_dim,self.out_dim,**hyperParams['ObservationEncoder'])
+        self.obs_encode_layer.to(device)
+        self.obs_act_encode_layer = SparseAutoencoder(obs_dim+act_dim,self.out_dim,**hyperParams['ObservationActionPairEncoder'])
+        self.obs_act_encode_layer.to(device)
 
     def encode_obs(self,observations):
         """状態ベクトルのエンコード
@@ -438,6 +446,7 @@ class Actor(nn.Module):
             nn.Linear(mid_dim,act_dim),
             nn.ReLU()
         )
+        self.policy_net.to(device)
         self.optimizer = torch.optim.SGD(self.parameters(), lr=lr)
 
     def forward(self, encoded_observations_list: list, actives_list: list, hidden: torch.Tensor = None) -> list:
@@ -460,6 +469,7 @@ class Actor(nn.Module):
             if active == 0:
                 logits = torch.zeros((1,0,self.act_dim), dtype=torch.float32)
             else:
+                obs.to(device)
                 logits = self.policy_net(obs) + 1e-6
             ret = {'policy':logits,'logits': logits, 'hidden': hidden}
             DictExtension.reduceNone(ret)
@@ -487,15 +497,16 @@ class Actor(nn.Module):
         print("VModel Updated")
         print("Updating ActorModel, ObservationActionPairEncoder, QModel")
         count = 0
-        max_count = len(ts)
+        active_ts = [t for t in ts if actives_list[t] > 0]
+        max_count = len(active_ts)
         seps = 10
         check_points = [int(t*max_count/seps) for t in range(1,seps+1)]
-        for t in ts:
+        for t in active_ts:
             count += 1
             if count in check_points:
                 check_points.pop(0)
                 print(f"{int(100*(1-len(check_points)/seps))}% Updated {count}/{max_count}")
-            if actives_list[t] > 0 and random.random() >= 0.5:
+            if random.random() >= 0.5:
                 action_policy: torch.Tensor = self.forward(encoded_observations_list[t:t+1],actives_list[t:t+1])[0]['policy']
                 state_encoder.updateObsActsEncoder(observations_list[t],action_policy)
                 encoded_obs_acts = state_encoder.encode_obs_acts(observations_list[t],action_policy)
@@ -518,28 +529,50 @@ class MAPOCA(nn.Module):
     Multi-Agent POlicy with Counterfactual Action (MAPOCA) アルゴリズムに基づく強化学習モデル。
     複数のエージェントが協調する強化学習環境を想定し、状態エンコーダ、Actor、V値モデル、Q値モデルから構成される。
     """
-    def __init__(self, obs_dim: int, act_dim: int, max_agents: int, lr: float, hid_dim: int = 128, v_hid_dim: int = 64, v_rsa_heads: int = 4,q_hid_dim: int = 64, q_rsa_heads: int = 4):
+    HYPER_PARAMETERS_DEFAULT = {
+        'StateEncoder':{
+            'out_dim': 128,
+            'ObservationEncoder':{
+                'rho':0.05,'beta':3 ,'lr':0.01
+            },
+            'ObservationActionPairEncoder':{
+                'rho':0.05,'beta':3 ,'lr':0.01
+            }
+        },
+        'Actor':{
+            'num_heads': 3, 'lr': 0.01
+        },
+        'VModel':{
+            'hid_dim': 64, 'num_heads': 3, 'lr': 0.01,
+            'lam': 0.5, 'gam': 0.5, 'lam_eps': 1e-7, 'gam_eps': 1e-7
+        },
+        'QModel':{
+            'hid_dim': 64,'num_heads': 3, 'lr': 0.01
+        }
+    }
+    def __init__(self, obs_dim: int, act_dim: int, max_agents: int,hyperParams: dict):
         """MAPOCAモデルの初期化
 
         Args:
             obs_dim: 各エージェントの状態観測ベクトルの次元数 
             act_dim: 各エージェントの行動空間の次元数
             max_agents: 環境内の最大エージェント数
-            lr: 学習率
-            hid_dim: エンコーディング／内部状態表現の次元数 (デフォルト: 128)
-            v_hid_dim: V値モデルの隠れ層次元数 (デフォルト: 64)
-            v_rsa_heads: V値モデルのRSAモジュール内ヘッド数 (デフォルト: 4)
-            q_hid_dim: Q値モデルの隠れ層次元数 (デフォルト: 64)
-            q_rsa_heads: Q値モデルのRSAモジュール内ヘッド数 (デフォルト: 4)
+            hyperParams: ハイパーパラメーター
         """
         super(MAPOCA, self).__init__()
+        hyper_params = self.HYPER_PARAMETERS_DEFAULT.copy()
+        for k,v in hyperParams.items():
+            hyper_params[k] = v
         self.act_dim = act_dim
         self.obs_dim = obs_dim
-        self.state_encoder = StateEncoder(obs_dim+1,act_dim,hid_dim) # g(o), f(o,a), (g,f)
-        self.actor = Actor(hid_dim, act_dim)
-        self.v_model = V(hid_dim,v_hid_dim,v_rsa_heads) # V値計算
-        self.q_model = Q(hid_dim,q_hid_dim,q_rsa_heads) # Q値計算
-        self.lr = lr
+        self.encoded_dim = hyper_params['StateEncoder']['out_dim']
+        self.state_encoder = StateEncoder(obs_dim+1,act_dim,hyper_params['StateEncoder']) # g(o), f(o,a), (g,f)
+        self.actor = Actor(self.encoded_dim, act_dim,**hyper_params['Actor'])
+        self.actor.to(device)
+        self.v_model = V(self.encoded_dim,**hyper_params['VModel']) # V値計算
+        self.v_model.to(device)
+        self.q_model = Q(self.encoded_dim,**hyper_params['QModel']) # Q値計算
+        self.q_model.to(device)
         self.max_agents = max_agents
     
     def forward(self, obs: torch.Tensor, hidden: torch.Tensor = None, get_only_one_action_output: bool = True) -> dict:
@@ -557,6 +590,7 @@ class MAPOCA(nn.Module):
                 * logits: 行動のロジット (policy を生成する前のネットワーク出力)
                 * hidden: 隠れ層状態 
         """
+        obs.to(device)
         observations_list, actives_list = self.split_to_obs_acts_list(obs)
         encoded_obs = self.state_encoder.encode_obs(observations_list)
         actor_output = self.actor.forward(encoded_obs, actives_list, hidden)

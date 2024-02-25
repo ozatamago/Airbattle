@@ -1,0 +1,6 @@
+TotalReward:-288.6094665527344, RewardMean:-4.509522914886475, ModelNumber:4
+TotalReward:-247.37466430664062, RewardMean:-3.865229368209839, ModelNumber:8
+TotalReward:113.75, RewardMean:1.7773436307907104, ModelNumber:11
+TotalReward:211.05001831054688, RewardMean:3.2976560592651367, ModelNumber:20
+TotalReward:219.2626953125, RewardMean:3.4259791374206543, ModelNumber:21
+TotalReward:308.925537109375, RewardMean:4.826961517333984, ModelNumber:31
